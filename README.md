@@ -23,26 +23,25 @@ npm run preview
 
 Kodda artıq sizin verdiyiniz Firebase config (`src/firebase.js`) daxil edilib. Amma layihənin işləməsi üçün Firebase Console-da 2 şeyi etməlisiniz:
 
-### a) Authentication — Admin hesabı yaradın
-1. https://console.firebase.google.com → `websitetest-88143` layihəsi → **Authentication** → **Sign-in method** → **Email/Password**-i aktiv edin.
-2. **Users** tabında **Add user** ilə özünüzə admin e-poçt/şifrə yaradın.
-3. Bu e-poçt/şifrə ilə saytda `/admin` səhifəsindən daxil olun.
+### a) Admin şifrəsi
+1. Saytda `/admin` səhifəsinə keçin.
+2. Şifrə sahəsinə `gasham` yazıb **Daxil ol** düyməsinə basın.
 
-> Qeyd: Hazırkı versiyada "admin" rolu ayrıca cədvəldə saxlanmır — Firebase Authentication-da hesabı olan istənilən şəxs admin sayılır. Əgər gələcəkdə bir neçə admin/moderator səviyyəsi istəsəniz, `admins/{uid}` düyünü əlavə edib Database Rules-da yoxlamaq lazımdır.
+> Qeyd: Bu sadə şifrə yalnız brauzer tərəfində (client-side) yoxlanılır və `sessionStorage`-də saxlanılır. Daha ciddi mühafizə üçün Firebase Authentication (email/password) + Realtime Database Rules ilə real giriş sistemi qurmaq lazımdır.
 
 ### b) Realtime Database Rules
-Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdakını yapışdırın (hər kəs oxuya bilsin, yalnız login olmuş admin yaza bilsin):
+Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdakını yapışdırın (hər kəs oxuya bilsin, admin paneldən yazımlar işləsin):
 
 ```json
 {
   "rules": {
     ".read": true,
-    ".write": "auth != null"
+    ".write": true
   }
 }
 ```
 
-Bunu etmədən admin panelindən heç nə yadda saxlanmayacaq (icazə xətası veriləcək).
+> Qeyd: Admin panel artıq Firebase Authentication-dan istifadə etmədiyi üçün Rules-də `.write: "auth != null"` qalsa, admin paneldən yazılan məlumatlar geri çevriləcək (icazə xətası). Məlumatların tam ictimai olmasını istəmirsinizsə, Firebase Authentication ilə real admin girişi qurun.
 
 ## 3. Sistemin quruluşu
 

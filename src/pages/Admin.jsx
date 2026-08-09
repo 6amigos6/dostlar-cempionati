@@ -5,17 +5,21 @@ import { seedDemoData, wipeAllData } from '../data/seed.js'
 import { roundNameForSize } from '../lib/logic'
 
 const TABS = ['Dashboard', 'Oyunçular', 'Komandalar', 'Turnirlər', 'Oyunlar', 'Tənzimləmələr']
+const ADMIN_PASSWORD = 'gasham'
+const UNLOCK_KEY = 'admin_unlocked'
 
 export default function Admin() {
-  const { user } = useApp()
   const [tab, setTab] = useState('Dashboard')
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(UNLOCK_KEY) === '1')
 
-  if (user === undefined) return <div className="loading"><div className="spinner" />Yoxlanılır...</div>
-  if (!user) return <AdminLogin />
+  const unlock = () => { sessionStorage.setItem(UNLOCK_KEY, '1'); setUnlocked(true) }
+  const lock = () => { sessionStorage.removeItem(UNLOCK_KEY); setUnlocked(false) }
+
+  if (!unlocked) return <AdminLogin onUnlock={unlock} />
 
   return (
     <div>
-      <div className="section-title"><h2>Admin Panel</h2><LogoutBtn /></div>
+      <div className="section-title"><h2>Admin Panel</h2><LogoutBtn onLogout={lock} /></div>
       <div className="tabs">
         {TABS.map((t) => <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</button>)}
       </div>
@@ -29,27 +33,20 @@ export default function Admin() {
   )
 }
 
-function LogoutBtn() {
-  const { logout } = useApp()
-  return <button className="btn btn-ghost btn-sm" onClick={logout}>Çıxış</button>
+function LogoutBtn({ onLogout }) {
+  return <button className="btn btn-ghost btn-sm" onClick={onLogout}>Çıxış</button>
 }
 
-function AdminLogin() {
-  const { login, notify } = useApp()
-  const [email, setEmail] = useState('')
+function AdminLogin({ onUnlock }) {
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
-  async function submit(e) {
+  function submit(e) {
     e.preventDefault()
-    setBusy(true); setErr('')
-    try {
-      await login(email, password)
-    } catch (e2) {
-      setErr('Giriş uğursuz oldu. E-poçt/şifrəni yoxlayın.')
-    } finally {
-      setBusy(false)
+    if (password === ADMIN_PASSWORD) {
+      onUnlock()
+    } else {
+      setErr('Şifrə yanlışdır.')
     }
   }
 
@@ -58,17 +55,13 @@ function AdminLogin() {
       <div style={{ textAlign: 'center', marginBottom: 18 }}>
         <span style={{ fontSize: 30 }}>🔐</span>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, marginTop: 8 }}>Admin Girişi</div>
-        <div className="muted" style={{ fontSize: 12 }}>Yalnız admin istifadəçilər üçün</div>
+        <div className="muted" style={{ fontSize: 12 }}>Şifrəni daxil edin</div>
       </div>
       <form onSubmit={submit}>
-        <div className="field"><label>E-poçt</label><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-        <div className="field"><label>Şifrə</label><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+        <div className="field"><label>Şifrə</label><input type="password" required autoFocus value={password} onChange={(e) => { setPassword(e.target.value); setErr('') }} /></div>
         {err && <div style={{ color: 'var(--live)', fontSize: 12, marginBottom: 10 }}>{err}</div>}
-        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Yoxlanılır...' : 'Daxil ol'}</button>
+        <button className="btn btn-primary btn-block">Daxil ol</button>
       </form>
-      <p className="muted" style={{ fontSize: 11, marginTop: 14, textAlign: 'center' }}>
-        Admin hesabı Firebase Console → Authentication bölməsindən yaradılır (bax README.md).
-      </p>
     </div>
   )
 }
