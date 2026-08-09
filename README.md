@@ -47,31 +47,34 @@ Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdak�
 
 - `src/firebase.js` — Firebase konfiqurasiyası
 - `src/store.jsx` — bütün database oxuma/yazma məntiqi (React Context, `useApp()` hook-u ilə istənilən komponentdən istifadə olunur)
-- `src/lib/logic.js` — turnir "beyni": püşkatma, bracket qurulması, xal cədvəli hesablanması
-- `src/pages/*` — hər bölmə üçün səhifə (Home, Teams, Players, Matches, Standings, Bracket, Statistics, Champion, Admin)
+- `src/lib/logic.js` — turnir "beyni": qrup bölgüsü, püşkatma, avtomatik playoff keçidi, xal cədvəli hesablanması
+- `src/pages/*` — hər bölmə üçün səhifə (Home, Teams, Matches, Standings, Bracket, Statistics, Archive, Champion, Admin)
 - `src/data/seed.js` — Demo Data generatoru (Admin → Tənzimləmələr → "Demo data yarat")
 
 ## 4. İş axını (admin üçün)
 
 1. `/admin`-dən daxil ol.
 2. **Komandalar** bölməsindən komandalar yarat.
-3. **Oyunçular** bölməsindən oyunçular əlavə et (sadəcə ad, nömrə, mövqe, komanda, profil şəkli) və komandalara təyin et.
-4. **Tənzimləmələr → "Çempionatı başlat"** düyməsi ilə bütün komandalarla yeni çempionat başlat (Playoff və ya Liqa formatı). Püşkatma avtomatik çəkilir.
-5. **Oyunlar** tabından hər oyuna tarix/saat/stadion əlavə et, nəticə daxil et, lazım gələrsə qol/assist/kart hadisələri qeyd et.
-6. Bir mərhələnin bütün oyunları bitdikdə **"Növbəti mərhələ →"** düyməsi avtomatik yarımfinal/final yaradır.
-7. Final bitdikdə sistem çempionu avtomatik müəyyənləşdirir (`/champion` səhifəsi açılır).
+3. **Tənzimləmələr → "Çempionatı başlat"** düyməsi ilə **Qarşılaşma modu** seç: komandalar avtomatik olaraq təsadüfi şəkildə A, B, C... qruplarına bölünür və qrup oyunları yaradılır.
+4. **Oyunlar** tabından nəticələri daxil et — xal cədvəli (3/1/0) avtomatik yenilənir.
+5. Qrup mərhələsi bitdikdə sistem avtomatik olaraq playoff (Rübfinal → Yarımfinal → Final) formalaşdırır; hər raund bitdikdə növbəti mərhələ avtomatik qurulur.
+6. Final bitdikdə çempion müəyyənləşir, turnir tam məlumatla **Tarixçə / Arxiv** bölməsinə avtomatik köçürülür.
+7. User paneldə `Tarixçə` bölməsindən əvvəlki turnirlərə baxmaq, Admin paneldə isə silmək mümkündür (təsdiq pəncərəsi ilə).
 
 ## 5. Nəyin daxil olduğu / hazırkı hüdudlar
 
 Bu, real Firebase backend-i olan tam işlək bir sistemdir (məlumatlar `localStorage`-da deyil, Realtime Database-də saxlanılır və bütün istifadəçilər üçün canlı sinxronlaşır). Aşağıdakılar realdır və işləyir:
 
-- Tək çempionat modeli (Çempionlar Liqası üslubu): komanda/oyunçu CRUD, avtomatik püşkatma (bracket) və liqa/round-robin cədvəli yaradılması
-- Nəticə daxil etmə, avtomatik xal cədvəli, avtomatik mərhələ keçidi, çempion müəyyənləşdirmə
+- Komanda CRUD, tək çempionat modeli (Çempionlar Liqası üslubu)
+- **Qarşılaşma modu**: komandalar təsadüfi qruplara bölünür (A, B, C...), qrup daxilində round-robin oyunları avtomatik yaradılır
+- Qrup mərhələsi bitdikdə playoff avtomatik formalaşır (hər qrupdan ilk 2 + ən yaxşı 3-cülər); hər raund nəticələrə görə avtomatik irəliləyir
+- Nəticə daxil etmə, avtomatik xal cədvəli (qələbə 3, heç-heçə 1), çempion müəyyənləşdirmə və kubok ekranı
+- Turnir bitdikdə avtomatik **arxivləşmə** (ad, tarix, komandalar, qruplar, oyunlar, nəticələr, xal cədvəli, final, çempion, statistikalar)
 - Canlı status (LIVE bayrağı + real-time Firebase sinxronizasiyası — admin nəticəni dəyişən kimi bütün istifadəçilərdə səhifə yeniləmədən dəyişir)
-- Dark/Light rejim, mobil bottom navigation, playoff bracket görünüşü, statistika lider lövhələri (qol/assist/kart)
+- Dark/Light rejim, mobil bottom navigation, playoff bracket görünüşü, komanda statistikaları
 
 Vaxt məhdudiyyəti səbəbindən aşağıdakılar **sadələşdirilib** və istəsəniz üzərində davam edə bilərik:
 - Push/browser notifikasiyaları (bölmə 25) əlavə edilməyib
-- Çox-turnir sistemi və arxiv/Hall of Fame — hazırkı versiyada tək aktiv çempionat saxlanılır; çempionat bitdikdə "Çempionatı sil" ilə yenisi başladıla bilər
-- Qrup + Playoff formatı — hazırkı versiyada Playoff (birbaşa bracket) və Liqa (round-robin) formatları dəstəklənir
+- Oyunçu sistemi — hazırkı versiyada oyunçu əlavə etmək imkanı yoxdur (yalnız komandalar); istəsəniz yenidən əlavə edilə bilər
+- 3-cü yer uğrunda oyun və seed sistemi (reytinqə görə yerləşdirmə) əlavə edilməyib
 - Log/audit tarixçəsi (bölmə 27) hələ ayrıca ekranda göstərilmir, lakin Firebase Realtime Database-in özü bütün dəyişiklikləri saxlayır

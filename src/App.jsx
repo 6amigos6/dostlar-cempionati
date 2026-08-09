@@ -4,11 +4,11 @@ import { useApp } from './store.jsx'
 
 import Home from './pages/Home.jsx'
 import Teams from './pages/Teams.jsx'
-import Players from './pages/Players.jsx'
 import Matches from './pages/Matches.jsx'
 import Standings from './pages/Standings.jsx'
 import Bracket from './pages/Bracket.jsx'
 import Statistics from './pages/Statistics.jsx'
+import Archive from './pages/Archive.jsx'
 import Champion from './pages/Champion.jsx'
 import Admin from './pages/Admin.jsx'
 
@@ -21,8 +21,8 @@ const NAV = [
 
 const MORE_LINKS = [
   { to: '/teams', label: 'Komandalar', emoji: '🛡️' },
-  { to: '/players', label: 'Oyunçular', emoji: '👤' },
   { to: '/standings', label: 'Turnir Cədvəli', emoji: '📋' },
+  { to: '/archive', label: 'Tarixçə / Arxiv', emoji: '🗄️' },
   { to: '/admin', label: 'Admin Panel', emoji: '🔐' },
 ]
 
@@ -61,12 +61,12 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/teams" element={<Teams />} />
             <Route path="/teams/:id" element={<Teams />} />
-            <Route path="/players" element={<Players />} />
-            <Route path="/players/:id" element={<Players />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/bracket" element={<Bracket />} />
             <Route path="/statistics" element={<Statistics />} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/archive/:id" element={<Archive />} />
             <Route path="/champion" element={<Champion />} />
             <Route path="/admin/*" element={<Admin />} />
           </Routes>

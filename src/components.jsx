@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { avatarColorFor, playerName, initials, formatDateTimeBaku } from './lib/logic'
+import { avatarColorFor, formatDateTimeBaku } from './lib/logic'
 
 export function TeamLogo({ team, size = 46 }) {
   if (!team) return <div className="team-logo" style={{ width: size, height: size, background: 'var(--elevated)' }}>?</div>
@@ -11,20 +11,6 @@ export function TeamLogo({ team, size = 46 }) {
   return (
     <div className="team-logo" style={{ width: size, height: size, background: color, fontSize: size * 0.36 }}>
       {(team.name || '?').slice(0, 2).toUpperCase()}
-    </div>
-  )
-}
-
-export function Avatar({ player, size = 46 }) {
-  if (!player) return <div className="avatar" style={{ width: size, height: size, background: 'var(--elevated)' }}>?</div>
-  if (player.photoUrl) {
-    return <div className="avatar" style={{ width: size, height: size, backgroundImage: `url(${player.photoUrl})` }} />
-  }
-  const name = playerName(player)
-  const color = avatarColorFor(`${name}${player.id || ''}`)
-  return (
-    <div className="avatar" style={{ width: size, height: size, background: color, fontSize: size * 0.34 }}>
-      {initials(name)}
     </div>
   )
 }
@@ -91,17 +77,6 @@ export function TeamCard({ team }) {
       </div>
       <div className="team-stat-row"><span>Qol fərqi</span><span>{gd > 0 ? `+${gd}` : gd}</span></div>
       <div className="team-stat-row"><span>Xal</span><span className="team-pts">{team.pts ?? (team.won || 0) * 3 + (team.drawn || 0)}</span></div>
-    </Link>
-  )
-}
-
-export function PlayerCard({ player, team }) {
-  const name = playerName(player)
-  return (
-    <Link to={`/players/${player.id}`} className="card player-card">
-      <Avatar player={player} />
-      <div className="player-name">{name}</div>
-      <div className="player-pos">{player.position || '—'}{team ? ` · ${team.name}` : ''}</div>
     </Link>
   )
 }

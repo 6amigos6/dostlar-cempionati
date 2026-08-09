@@ -130,6 +130,17 @@ html[data-theme='light'] .bottom-nav { background: rgba(255,255,255,0.94); }
 html[data-theme='light'] .hero-stat { background: rgba(0,0,0,.03); }
 .hero-stat b { font-family: var(--font-display); font-size: 17px; display: block; }
 .hero-stat span { font-size: 10.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .5px; }
+.cup-hero { text-align: center; }
+.cup-hero .hero-sub { margin-bottom: 16px; }
+.cup-trophy {
+  display: inline-block; font-size: 58px; line-height: 1; margin-bottom: 10px;
+  filter: drop-shadow(0 6px 18px rgba(212,175,55,.35));
+  animation: cup-glow 2.6s ease-in-out infinite;
+}
+@keyframes cup-glow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
 
 /* ---------- Cards ---------- */
 .card {
@@ -157,16 +168,6 @@ html[data-theme='light'] .hero-stat { background: rgba(0,0,0,.03); }
 .team-record { font-size: 11px; color: var(--ink-muted); font-family: var(--font-mono); }
 .team-stat-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
 .team-pts { font-family: var(--font-mono); color: var(--gold); font-weight: 600; }
-
-/* ---------- Player avatar/card ---------- */
-.avatar {
-  border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display);
-  color: #fff; flex-shrink: 0; overflow: hidden; background-size: cover; background-position: center;
-}
-.player-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px 10px; cursor: pointer; }
-.player-card .avatar { width: 56px; height: 56px; font-size: 18px; margin-bottom: 8px; }
-.player-name { font-size: 12.5px; font-weight: 700; }
-.player-pos { font-size: 10.5px; color: var(--ink-muted); margin-top: 2px; }
 
 /* ---------- Match card / scoreboard ---------- */
 .match-card { padding: 14px; }

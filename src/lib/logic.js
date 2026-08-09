@@ -1,19 +1,7 @@
-// Turnirin bütün "biznes məntiqi" bu fayldadır: püşkatma, cədvəl hesablanması,
-// avtomatik yüksəliş, statistika və reytinq.
+// Turnirin bütün "biznes məntiqi" bu fayldadır: püşkatma, qrup sistemi,
+// cədvəl hesablanması və avtomatik mərhələ keçidi.
 
 export const AVATAR_PALETTE = ['#1FA35C', '#D4AF37', '#2563EB', '#DC2626', '#7C3AED', '#EA580C', '#0D9488', '#DB2777']
-
-export function playerName(p) {
-  if (!p) return ''
-  return p.name || [p.firstName, p.lastName].filter(Boolean).join(' ')
-}
-
-export function initials(name = '') {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean)
-  const first = (parts[0]?.[0] || '').toUpperCase()
-  const second = (parts[1]?.[0] || '').toUpperCase()
-  return `${first}${second}` || '?'
-}
 
 export function avatarColorFor(seedStr = '') {
   let hash = 0
@@ -41,6 +29,61 @@ const ROUND_NAMES = {
 
 export function roundNameForSize(teamCount) {
   return ROUND_NAMES[teamCount] || `${teamCount} komandalıq mərhələ`
+}
+
+// 2-dən böyük ən kiçik 2-nin qüvvəti (playoff ölçüsü üçün)
+export function nextPowerOfTwo(n) {
+  let p = 2
+  while (p < n) p *= 2
+  return p
+}
+
+// Komandaları təsadüfi olaraq ~4-lük qruplara bölür (A, B, C ...)
+export function splitIntoGroups(teamIds) {
+  const shuffled = shuffle(teamIds)
+  const n = shuffled.length
+  if (n === 0) return {}
+  const numGroups = Math.max(1, Math.round(n / 4))
+  const groups = {}
+  shuffled.forEach((id, i) => {
+    const gi = Math.min(numGroups - 1, Math.floor((i * numGroups) / n))
+    const letter = String.fromCharCode(65 + gi)
+    ;(groups[letter] = groups[letter] || []).push(id)
+  })
+  return groups
+}
+
+// Qruplar daxilində round-robin qarşılaşmalarını yaradır
+export function generateGroupMatches(groups) {
+  const matches = []
+  Object.entries(groups).forEach(([letter, teamIds]) => {
+    generateRoundRobin(teamIds).forEach((m) => {
+      matches.push({ ...m, round: `${letter} qrupu · ${m.round}`, group: letter })
+    })
+  })
+  return matches
+}
+
+// Qrup mərhələsi bitdikdən sonra playoff mərhələsini qurur:
+// hər qrupdan ilk 2 + (lazım olarsa) ən yaxşı 3-cülər, 2-nin qüvvətinə tamamlanır
+export function buildKnockoutFromGroups(tournament) {
+  const groups = tournament.groups || {}
+  const matches = Object.values(tournament.matches || {})
+  const advancing = []
+  const thirds = []
+  Object.entries(groups).forEach(([letter, ids]) => {
+    const gMatches = matches.filter((m) => m.group === letter)
+    const table = computeStandings(ids, gMatches, tournament.pointsRule)
+    table.forEach((row, i) => {
+      if (i < 2) advancing.push(row)
+      else if (i === 2) thirds.push(row)
+    })
+  })
+  const list = advancing.map((r) => r.teamId)
+  const target = nextPowerOfTwo(Math.max(2, list.length))
+  const sortedThirds = thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+  while (list.length < target && sortedThirds.length > 0) list.push(sortedThirds.shift().teamId)
+  return generatePlayoffRound(list, { seeded: false })
 }
 
 // N komanda üçün ilk playoff mərhələsinin qarşılaşmalarını yaradır (seed və ya təsadüfi)

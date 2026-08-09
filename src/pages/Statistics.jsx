@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import { useApp } from '../store.jsx'
-import { Avatar, EmptyState } from '../components.jsx'
-import { playerName } from '../lib/logic'
+import { TeamLogo, EmptyState } from '../components.jsx'
 
 function Leaderboard({ title, emoji, rows, renderValue, renderLabel, renderMeta }) {
   if (!rows.length) return null
@@ -25,29 +24,30 @@ function Leaderboard({ title, emoji, rows, renderValue, renderLabel, renderMeta 
 }
 
 export default function Statistics() {
-  const { playerList } = useApp()
+  const { teamList } = useApp()
 
-  const topScorers = useMemo(() => [...playerList].filter((p) => p.goals > 0).sort((a, b) => (b.goals || 0) - (a.goals || 0)).slice(0, 5), [playerList])
-  const topAssists = useMemo(() => [...playerList].filter((p) => p.assists > 0).sort((a, b) => (b.assists || 0) - (a.assists || 0)).slice(0, 5), [playerList])
-  const mostCards = useMemo(() => [...playerList].filter((p) => (p.yellowCards || 0) + (p.redCards || 0) > 0)
-    .sort((a, b) => ((b.yellowCards || 0) + (b.redCards || 0) * 2) - ((a.yellowCards || 0) + (a.redCards || 0) * 2)).slice(0, 5), [playerList])
-
-  const hasAny = topScorers.length || topAssists.length || mostCards.length
+  const topAttack = useMemo(() => [...teamList].filter((t) => (t.gf || 0) > 0).sort((a, b) => (b.gf || 0) - (a.gf || 0)).slice(0, 5), [teamList])
+  const bestDefense = useMemo(() => [...teamList].filter((t) => (t.ga || 0) > 0).sort((a, b) => (a.ga || 0) - (b.ga || 0)).slice(0, 5), [teamList])
+  const mostWins = useMemo(() => [...teamList].filter((t) => (t.won || 0) > 0).sort((a, b) => (b.won || 0) - (a.won || 0)).slice(0, 5), [teamList])
+  const totalGoals = teamList.reduce((s, t) => s + (t.gf || 0), 0)
 
   return (
     <div>
       <div className="section-title"><h2>Statistikalar</h2></div>
-      {!hasAny
-        ? <EmptyState emoji="📊" title="Hələ statistika yoxdur" sub="Oyun nəticələri daxil edildikcə burada görünəcək." />
+      <div className="card card-elevated" style={{ textAlign: 'center', padding: 20 }}>
+        <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>Ümumi vurulan qollar</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--gold)', marginTop: 4 }}>{totalGoals}</div>
+      </div>
+      {teamList.length === 0
+        ? <EmptyState emoji="📊" title="Hələ statistika yoxdur" sub="Komandalar və oyun nəticələri daxil edildikcə burada görünəcək." />
         : (
-          <div className="stack-8">
-            <Leaderboard title="Ən çox qol vuran" emoji="⚽" rows={topScorers}
-              renderMeta={(p) => <Avatar player={p} size={26} />} renderLabel={(p) => playerName(p)} renderValue={(p) => `${p.goals} qol`} />
-            <Leaderboard title="Ən çox assist" emoji="🎯" rows={topAssists}
-              renderMeta={(p) => <Avatar player={p} size={26} />} renderLabel={(p) => playerName(p)} renderValue={(p) => `${p.assists} assist`} />
-            <Leaderboard title="Ən çox kart" emoji="🟨" rows={mostCards}
-              renderMeta={(p) => <Avatar player={p} size={26} />} renderLabel={(p) => playerName(p)}
-              renderValue={(p) => `${p.yellowCards || 0}🟨 ${p.redCards || 0}🟥`} />
+          <div className="stack-8" style={{ marginTop: 12 }}>
+            <Leaderboard title="Ən çox qol vuran komanda" emoji="⚽" rows={topAttack}
+              renderMeta={(t) => <TeamLogo team={t} size={26} />} renderLabel={(t) => t.name} renderValue={(t) => `${t.gf} qol`} />
+            <Leaderboard title="Ən yaxşı müdafiə" emoji="🛡️" rows={bestDefense}
+              renderMeta={(t) => <TeamLogo team={t} size={26} />} renderLabel={(t) => t.name} renderValue={(t) => `${t.ga} buraxılan`} />
+            <Leaderboard title="Ən çox qələbə" emoji="🔥" rows={mostWins}
+              renderMeta={(t) => <TeamLogo team={t} size={26} />} renderLabel={(t) => t.name} renderValue={(t) => `${t.won} qələbə`} />
           </div>
         )}
     </div>

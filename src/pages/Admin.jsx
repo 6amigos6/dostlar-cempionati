@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { useApp } from '../store.jsx'
-import { Modal, Avatar, TeamLogo, StatusBadge, EmptyState } from '../components.jsx'
+import { Modal, TeamLogo, StatusBadge, EmptyState } from '../components.jsx'
 import { seedDemoData, wipeAllData } from '../data/seed.js'
-import { playerName } from '../lib/logic'
 
-const TABS = ['Dashboard', 'Oyunçular', 'Komandalar', 'Oyunlar', 'Tənzimləmələr']
+const TABS = ['Dashboard', 'Komandalar', 'Oyunlar', 'Tənzimləmələr']
 const ADMIN_PASSWORD = 'gasham'
 const UNLOCK_KEY = 'admin_unlocked'
 
@@ -24,7 +23,6 @@ export default function Admin() {
         {TABS.map((t) => <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</button>)}
       </div>
       {tab === 'Dashboard' && <Dashboard />}
-      {tab === 'Oyunçular' && <PlayersAdmin />}
       {tab === 'Komandalar' && <TeamsAdmin />}
       {tab === 'Oyunlar' && <MatchesAdmin />}
       {tab === 'Tənzimləmələr' && <SettingsAdmin />}
@@ -66,14 +64,13 @@ function AdminLogin({ onUnlock }) {
 }
 
 function Dashboard() {
-  const { teamList, playerList, activeTournament } = useApp()
+  const { teamList, activeTournament } = useApp()
   const matches = activeTournament?.matches ? Object.values(activeTournament.matches) : []
   const played = matches.filter((m) => m.status === 'FINISHED').length
   const upcoming = matches.filter((m) => m.status === 'UPCOMING').length
   const stats = [
     ['Aktiv turnir', activeTournament?.name || '—'],
     ['Komanda sayı', teamList.length],
-    ['Oyunçu sayı', playerList.length],
     ['Oynanmış oyunlar', played],
     ['Qarşıdakı oyunlar', upcoming],
   ]
@@ -86,80 +83,6 @@ function Dashboard() {
         </div>
       ))}
     </div>
-  )
-}
-
-// ================= PLAYERS =================
-function PlayersAdmin() {
-  const { playerList, teams, deletePlayer } = useApp()
-  const [editing, setEditing] = useState(null) // null=closed, {}=new, {...}=edit
-  return (
-    <div>
-      <button className="btn btn-primary btn-block" onClick={() => setEditing({})}>+ Oyunçu əlavə et</button>
-      <div style={{ marginTop: 12 }} className="stack-8">
-        {playerList.length === 0 && <EmptyState emoji="👤" title="Oyunçu yoxdur" />}
-        {playerList.map((p) => (
-          <div className="card flex-between" key={p.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Avatar player={p} size={38} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{playerName(p)}</div>
-                <div className="muted" style={{ fontSize: 11 }}>{teams[p.teamId]?.name || 'Komandasız'} · {p.position || '—'}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(p)}>Redaktə</button>
-              <button className="btn btn-danger btn-sm" onClick={() => { if (confirm('Oyunçunu silmək istəyirsiniz?')) deletePlayer(p.id) }}>Sil</button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {editing && <PlayerForm player={editing} onClose={() => setEditing(null)} />}
-    </div>
-  )
-}
-
-function PlayerForm({ player, onClose }) {
-  const { addPlayer, updatePlayer, teamList } = useApp()
-  const isNew = !player.id
-  const [form, setForm] = useState({
-    name: player.name || playerName(player) || '', number: player.number ?? '',
-    position: player.position || 'Hücumçu', teamId: player.teamId || '', photoUrl: player.photoUrl || '',
-  })
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
-
-  async function submit(e) {
-    e.preventDefault()
-    const data = { ...form, number: form.number === '' ? null : Number(form.number) }
-    if (isNew) await addPlayer(data)
-    else await updatePlayer(player.id, data)
-    onClose()
-  }
-
-  return (
-    <Modal title={isNew ? 'Oyunçu əlavə et' : 'Oyunçunu redaktə et'} onClose={onClose}>
-      <form onSubmit={submit}>
-        <div className="field"><label>Ad</label><input required value={form.name} onChange={set('name')} placeholder="məs. Elvin" /></div>
-        <div className="field-row">
-          <div className="field"><label>Nömrə</label><input type="number" value={form.number} onChange={set('number')} /></div>
-          <div className="field">
-            <label>Mövqe</label>
-            <select value={form.position} onChange={set('position')}>
-              <option>Qapıçı</option><option>Müdafiəçi</option><option>Yarımmüdafiəçi</option><option>Hücumçu</option>
-            </select>
-          </div>
-        </div>
-        <div className="field">
-          <label>Komanda</label>
-          <select value={form.teamId} onChange={set('teamId')}>
-            <option value="">— Komandasız —</option>
-            {teamList.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </div>
-        <div className="field"><label>Profil şəkli URL (boş buraxsanız avtomatik avatar)</label><input value={form.photoUrl} onChange={set('photoUrl')} placeholder="https://..." /></div>
-        <button className="btn btn-primary btn-block">Yadda saxla</button>
-      </form>
-    </Modal>
   )
 }
 
@@ -211,7 +134,6 @@ function TeamForm({ team, onClose }) {
         </div>
         <button className="btn btn-primary btn-block">Yadda saxla</button>
       </form>
-      {!isNew && <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>Oyunçuları komandaya "Oyunçular" bölməsindən təyin edin.</p>}
     </Modal>
   )
 }
@@ -219,7 +141,7 @@ function TeamForm({ team, onClose }) {
 // ================= MATCHES =================
 function MatchesAdmin() {
   const {
-    activeTournament, teams, updateMatch, deleteMatch, addMatch, setMatchLive, advanceRound, recordResult, notify,
+    activeTournament, teams, updateMatch, deleteMatch, addMatch, setMatchLive, recordResult,
   } = useApp()
   const [resultFor, setResultFor] = useState(null)
   const [addingMatch, setAddingMatch] = useState(false)
@@ -227,24 +149,19 @@ function MatchesAdmin() {
   if (!activeTournament) return <EmptyState emoji="⚽" title="Hələ çempionat yoxdur" sub="Tənzimləmələr → Çempionatı başlat bölməsindən çempionat yaradın." />
   const matches = Object.entries(activeTournament.matches || {}).map(([id, m]) => ({ id, ...m }))
   const rounds = [...new Set(matches.map((m) => m.round))]
+  const stageLabel = activeTournament.stage === 'groups' ? 'Qrup mərhələsi' : activeTournament.stage === 'knockout' ? 'Playoff' : 'Liqa'
 
   return (
     <div>
       <div className="flex-between" style={{ marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 13 }}>{activeTournament.name}</div>
+        <div style={{ fontWeight: 700, fontSize: 13 }}>{activeTournament.name} <span className="chip" style={{ marginLeft: 6 }}>{stageLabel}</span></div>
         <button className="btn btn-outline btn-sm" onClick={() => setAddingMatch(true)}>+ Oyun</button>
       </div>
       {rounds.map((round) => {
         const rm = matches.filter((m) => m.round === round)
-        const allFinished = rm.length > 0 && rm.every((m) => m.status === 'FINISHED')
         return (
           <div key={round} className="card" style={{ marginBottom: 10 }}>
-            <div className="flex-between" style={{ marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 12.5 }}>{round}</div>
-              {allFinished && rm.length >= 2 && (
-                <button className="btn btn-gold btn-sm" onClick={() => advanceRound(activeTournament.id, round)}>Növbəti mərhələ →</button>
-              )}
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 8 }}>{round}</div>
             <div className="stack-8">
               {rm.map((m) => (
                 <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
@@ -366,10 +283,10 @@ function ManualMatchForm({ tournamentId, teamIds, onClose }) {
 
 // ================= SETTINGS =================
 function SettingsAdmin() {
-  const { teamList, activeTournament, startChampionship, deleteTournament, generateDraw, notify } = useApp()
+  const { teamList, activeTournament, archiveList, teams, startChampionship, deleteTournament, generateDraw, deleteArchivedTournament, notify } = useApp()
   const [busy, setBusy] = useState(false)
   const [startOpen, setStartOpen] = useState(false)
-  const [format, setFormat] = useState('knockout')
+  const [format, setFormat] = useState('groups')
 
   async function start(e) {
     e.preventDefault()
@@ -404,6 +321,7 @@ function SettingsAdmin() {
             <div className="field">
               <label>Format</label>
               <select value={format} onChange={(e) => setFormat(e.target.value)}>
+                <option value="groups">Qarşılaşma modu (Qruplar + Playoff)</option>
                 <option value="knockout">Birbaşa Playoff (Çempionlar Liqası üslubu)</option>
                 <option value="league">Liqa (hər kəs hər kəslə oynayır)</option>
               </select>
@@ -414,8 +332,31 @@ function SettingsAdmin() {
         </Modal>
       )}
       <div className="card">
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Əvvəlki turnirlər</div>
+        {archiveList.length === 0
+          ? <p className="muted" style={{ fontSize: 12 }}>Hələ bitmiş turnir yoxdur. Turnir başa çatdıqda avtomatik burada saxlanılır.</p>
+          : (
+            <div className="stack-8">
+              {archiveList.map((t) => (
+                <div className="flex-between" key={t.id}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 12.5 }}>{t.name} · {t.season}</div>
+                    <div className="muted" style={{ fontSize: 11 }}>🏆 {teams[t.champion]?.name || t.teamsInfo?.[t.champion]?.name || '—'}</div>
+                  </div>
+                  <button className="btn btn-danger btn-sm" onClick={async () => {
+                    if (confirm(`"${t.name}" turnirini silmək istəyirsiniz? Bu əməliyyat geri qaytarılmır.`)) {
+                      await deleteArchivedTournament(t.id)
+                      notify('Turnir tarixçədən silindi')
+                    }
+                  }}>Sil</button>
+                </div>
+              ))}
+            </div>
+          )}
+      </div>
+      <div className="card">
         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Demo Data</div>
-        <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>8 komanda, 32 oyunçu və rübfinal mərhələsi ilə nümunə çempionat yaradır.</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>8 komanda və qrup + playoff mərhələsi ilə nümunə çempionat yaradır.</p>
         <button
           className="btn btn-outline btn-block"
           disabled={busy}
@@ -424,7 +365,7 @@ function SettingsAdmin() {
       </div>
       <div className="card">
         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--live)' }}>Təhlükəli bölgə</div>
-        <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>Bütün komandaları, oyunçuları və çempionatı siləcək. Geri qaytarıla bilməz.</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>Bütün komandaları, çempionatları və tarixçəni siləcək. Geri qaytarıla bilməz.</p>
         <button
           className="btn btn-danger btn-block"
           disabled={busy}

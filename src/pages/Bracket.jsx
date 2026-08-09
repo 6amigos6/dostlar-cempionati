@@ -10,8 +10,8 @@ export default function Bracket() {
   const rounds = useMemo(() => {
     if (!activeTournament?.matches) return []
     const map = {}
-    Object.values(activeTournament.matches).forEach((m) => { (map[m.round] = map[m.round] || []).push(m) })
-    // ən çox oyunu olan mərhələ ən əvvəldədir (rübfinal -> yarımfinal -> final)
+    // yalnız playoff (qrup xaric) oyunları bracket-də göstərilir
+    Object.values(activeTournament.matches).filter((m) => !m.group).forEach((m) => { (map[m.round] = map[m.round] || []).push(m) })
     return Object.entries(map).sort((a, b) => b[1].length - a[1].length)
   }, [activeTournament])
 
@@ -31,16 +31,15 @@ export default function Bracket() {
     )
   }
 
-  if (activeTournament.format !== 'knockout' && rounds.length === 0) {
-    return <EmptyState emoji="📋" title="Bu format üçün turnir cədvəlinə baxın" sub="Liqa sistemi bracket deyil, xal cədvəli ilə göstərilir." />
+  if (rounds.length === 0) {
+    const stageLabel = activeTournament.stage === 'groups' ? 'Qrup mərhələsi davam edir' : 'Hələ püşkatma edilməyib'
+    return <EmptyState emoji="🏆" title="Playoff hələ formalaşmayıb" sub={activeTournament.stage === 'groups' ? 'Qrup oyunları bitdikdə playoff avtomatik qurulacaq.' : 'Admin panelindən Tənzimləmələr → Çempionatı başlat ilə püşkatma çəkin.'} />
   }
 
   return (
     <div>
       <div className="section-title"><h2>Playoff Bracket</h2></div>
-      {rounds.length === 0
-        ? <EmptyState emoji="🏆" title="Hələ püşkatma edilməyib" sub="Admin panelindən Tənzimləmələr → Çempionatı başlat ilə püşkatma çəkin." />
-        : <BracketGrid rounds={rounds} teams={teams} />}
+      <BracketGrid rounds={rounds} teams={teams} />
     </div>
   )
 }
