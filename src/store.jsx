@@ -181,22 +181,6 @@ export function AppProvider({ children }) {
     notify('Nəticə yadda saxlanıldı')
   }, [tournaments, teams, notify])
 
-  // Oyun hadisəsi (qol/assist/kart) əlavə et — həm matç tarixçəsinə, həm oyunçu statistikasına yazılır
-  const addMatchEvent = useCallback(async (tournamentId, matchId, event) => {
-    const t = tournaments[tournamentId]
-    const m = t?.matches?.[matchId]
-    const events = [...(m?.events || []), { ...event, id: uid('ev'), createdAt: Date.now() }]
-    await update(ref(db, `tournaments/${tournamentId}/matches/${matchId}`), { events })
-    if (event.playerId) {
-      const p = players[event.playerId]
-      if (p) {
-        const field = { goal: 'goals', assist: 'assists', yellow: 'yellowCards', red: 'redCards' }[event.type]
-        if (field) await update(ref(db, `players/${event.playerId}`), { [field]: (p[field] || 0) + 1 })
-      }
-    }
-    notify('Hadisə əlavə edildi')
-  }, [tournaments, players, notify])
-
   const setMatchLive = useCallback((tournamentId, matchId, isLive) => update(
     ref(db, `tournaments/${tournamentId}/matches/${matchId}`),
     { status: isLive ? 'LIVE' : 'UPCOMING', liveStartedAt: isLive ? Date.now() : null },
@@ -241,7 +225,7 @@ export function AppProvider({ children }) {
     activeTournament, activeTournamentId, loading, theme, toggleTheme, notify, toast,
     addPlayer, updatePlayer, deletePlayer, addTeam, updateTeam, deleteTeam,
     createTournament, setActiveTournament, deleteTournament, updateTournament, generateDraw, startChampionship,
-    recordResult, setMatchLive, updateMatch, deleteMatch, addMatch, addMatchEvent, advanceRound,
+    recordResult, setMatchLive, updateMatch, deleteMatch, addMatch, advanceRound,
     computeStandings,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

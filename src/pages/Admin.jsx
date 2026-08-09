@@ -289,18 +289,13 @@ function MatchSchedule({ tournamentId, match }) {
 }
 
 function ResultForm({ tournamentId, match, onClose }) {
-  const { recordResult, addMatchEvent, playerList, teams } = useApp()
+  const { recordResult, teams } = useApp()
   const [scoreA, setScoreA] = useState(match.scoreA ?? 0)
   const [scoreB, setScoreB] = useState(match.scoreB ?? 0)
   const [needsPen, setNeedsPen] = useState(false)
   const [penA, setPenA] = useState('')
   const [penB, setPenB] = useState('')
   const [notes, setNotes] = useState(match.notes || '')
-  const [event, setEvent] = useState({ type: 'goal', teamId: match.teamA, playerId: '', minute: '' })
-
-  const rosterA = playerList.filter((p) => p.teamId === match.teamA)
-  const rosterB = playerList.filter((p) => p.teamId === match.teamB)
-  const eventRoster = event.teamId === match.teamA ? rosterA : rosterB
 
   async function submit(e) {
     e.preventDefault()
@@ -309,13 +304,6 @@ function ResultForm({ tournamentId, match, onClose }) {
       penA: needsPen ? Number(penA) : null, penB: needsPen ? Number(penB) : null,
     })
     onClose()
-  }
-
-  async function submitEvent(e) {
-    e.preventDefault()
-    if (!event.playerId) return
-    await addMatchEvent(tournamentId, match.id, event)
-    setEvent({ ...event, playerId: '', minute: '' })
   }
 
   return (
@@ -341,45 +329,6 @@ function ResultForm({ tournamentId, match, onClose }) {
         <div className="field"><label>Qeyd</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         <button className="btn btn-primary btn-block">Nəticəni yadda saxla</button>
       </form>
-
-      <hr className="divider" />
-      <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 8 }}>Hadisə əlavə et (qol / assist / kart)</div>
-      <form onSubmit={submitEvent}>
-        <div className="field-row">
-          <div className="field">
-            <label>Növ</label>
-            <select value={event.type} onChange={(e) => setEvent({ ...event, type: e.target.value })}>
-              <option value="goal">⚽ Qol</option><option value="assist">🎯 Assist</option>
-              <option value="yellow">🟨 Sarı kart</option><option value="red">🟥 Qırmızı kart</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Komanda</label>
-            <select value={event.teamId} onChange={(e) => setEvent({ ...event, teamId: e.target.value, playerId: '' })}>
-              <option value={match.teamA}>{teams[match.teamA]?.name}</option>
-              <option value={match.teamB}>{teams[match.teamB]?.name}</option>
-            </select>
-          </div>
-        </div>
-        <div className="field-row">
-          <div className="field">
-            <label>Oyunçu</label>
-            <select value={event.playerId} onChange={(e) => setEvent({ ...event, playerId: e.target.value })}>
-              <option value="">— Seç —</option>
-              {eventRoster.map((p) => <option key={p.id} value={p.id}>{playerName(p)}</option>)}
-            </select>
-          </div>
-          <div className="field"><label>Dəqiqə</label><input type="number" value={event.minute} onChange={(e) => setEvent({ ...event, minute: e.target.value })} /></div>
-        </div>
-        <button className="btn btn-outline btn-block btn-sm">Hadisəni əlavə et</button>
-      </form>
-      {match.events?.length > 0 && (
-        <div className="stack-8" style={{ marginTop: 10 }}>
-          {match.events.map((ev) => (
-            <div key={ev.id} className="chip">{ev.type === 'goal' ? '⚽' : ev.type === 'assist' ? '🎯' : ev.type === 'yellow' ? '🟨' : '🟥'} {playerName(playerList.find((p) => p.id === ev.playerId))} {ev.minute ? `${ev.minute}'` : ''}</div>
-          ))}
-        </div>
-      )}
     </Modal>
   )
 }
