@@ -15,7 +15,7 @@ export default function Home() {
   if (!activeTournament) {
     return (
       <div>
-        <EmptyState emoji="🏟️" title="Hazırda aktiv çempionat yoxdur" sub="Admin panelindən yeni turnir yaradıb başlada bilər." />
+        <EmptyState emoji="🏟️" title="Hazırda aktiv çempionat yoxdur" sub="Admin panelindən Tənzimləmələr → Çempionatı başlat ilə yeni çempionat başlada bilərsiniz." />
         <Link to="/admin" className="btn btn-primary btn-block">Admin Panelə keç</Link>
       </div>
     )

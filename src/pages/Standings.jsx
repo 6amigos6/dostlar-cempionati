@@ -14,7 +14,7 @@ export default function Standings() {
 
   if (!activeTournament) return <EmptyState emoji="📋" title="Aktiv çempionat yoxdur" />
   if (activeTournament.format === 'knockout') {
-    return <EmptyState emoji="📋" title="Bu turnir formatında cədvəl yoxdur" sub="Birbaşa playoff formatı üçün Turnir bölməsindəki əvəzinə bracket görünüşünə baxın." />
+    return <EmptyState emoji="📋" title="Bu formatda cədvəl yoxdur" sub="Playoff formatında cədvəl əvəzinə Turnir (bracket) bölməsinə baxın." />
   }
 
   return (

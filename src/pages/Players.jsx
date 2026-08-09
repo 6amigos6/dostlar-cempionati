@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { Avatar, PlayerCard, EmptyState } from '../components.jsx'
-import { computePlayerRating } from '../lib/logic'
+import { playerName } from '../lib/logic'
 
 export default function Players() {
   const { id } = useParams()
@@ -13,10 +13,7 @@ export default function Players() {
     const player = players[id]
     if (!player) return <EmptyState emoji="👤" title="Oyunçu tapılmadı" />
     const team = player.teamId ? teams[player.teamId] : null
-    const rating = computePlayerRating(player)
     const stats = [
-      ['Oyun sayı', player.gamesPlayed || 0],
-      ['Qələbə sayı', player.wins || 0],
       ['Qol sayı', player.goals || 0],
       ['Assist sayı', player.assists || 0],
       ['Sarı kart', player.yellowCards || 0],
@@ -27,11 +24,9 @@ export default function Players() {
         <Link to="/players" className="chip" style={{ marginBottom: 14, display: 'inline-block' }}>← Oyunçular</Link>
         <div className="card card-elevated" style={{ textAlign: 'center', padding: 26 }}>
           <Avatar player={player} size={78} />
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, marginTop: 12 }}>{player.firstName} {player.lastName}</div>
-          {player.nickname && <div className="muted" style={{ fontSize: 12.5 }}>"{player.nickname}"</div>}
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, marginTop: 12 }}>{playerName(player)}</div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{player.position || '—'} {player.number != null ? `· #${player.number}` : ''}</div>
           {team && <Link to={`/teams/${team.id}`} className="chip" style={{ marginTop: 10, display: 'inline-block' }}>🛡️ {team.name}</Link>}
-          <div className="player-rating" style={{ marginTop: 12, display: 'inline-block' }}>⭐ Reytinq: {rating}</div>
         </div>
 
         <div className="grid-2" style={{ marginTop: 12 }}>
@@ -43,19 +38,11 @@ export default function Players() {
           ))}
         </div>
 
-        {player.tournamentHistory?.length > 0 && (
-          <>
-            <div className="section-title"><h2>Turnirlərdə iştirakı</h2></div>
-            <div className="card">
-              {player.tournamentHistory.map((t, i) => <div key={i} className="chip" style={{ marginRight: 6, marginBottom: 6, display: 'inline-block' }}>{t}</div>)}
-            </div>
-          </>
-        )}
       </div>
     )
   }
 
-  const filtered = useMemo(() => playerList.filter((p) => `${p.firstName} ${p.lastName} ${p.nickname || ''}`.toLowerCase().includes(q.toLowerCase())), [playerList, q])
+  const filtered = useMemo(() => playerList.filter((p) => playerName(p).toLowerCase().includes(q.toLowerCase())), [playerList, q])
 
   return (
     <div>

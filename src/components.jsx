@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { avatarColorFor, initials, formatDateTimeBaku } from './lib/logic'
+import { avatarColorFor, playerName, initials, formatDateTimeBaku } from './lib/logic'
 
 export function TeamLogo({ team, size = 46 }) {
   if (!team) return <div className="team-logo" style={{ width: size, height: size, background: 'var(--elevated)' }}>?</div>
@@ -20,10 +20,11 @@ export function Avatar({ player, size = 46 }) {
   if (player.photoUrl) {
     return <div className="avatar" style={{ width: size, height: size, backgroundImage: `url(${player.photoUrl})` }} />
   }
-  const color = avatarColorFor(`${player.firstName || ''}${player.lastName || ''}${player.id || ''}`)
+  const name = playerName(player)
+  const color = avatarColorFor(`${name}${player.id || ''}`)
   return (
     <div className="avatar" style={{ width: size, height: size, background: color, fontSize: size * 0.34 }}>
-      {initials(player.firstName, player.lastName)}
+      {initials(name)}
     </div>
   )
 }
@@ -95,12 +96,12 @@ export function TeamCard({ team }) {
 }
 
 export function PlayerCard({ player, team }) {
+  const name = playerName(player)
   return (
     <Link to={`/players/${player.id}`} className="card player-card">
       <Avatar player={player} />
-      <div className="player-name">{player.firstName} {player.lastName}</div>
+      <div className="player-name">{name}</div>
       <div className="player-pos">{player.position || '—'}{team ? ` · ${team.name}` : ''}</div>
-      <div className="player-rating">⭐ {player.rating || 50}</div>
     </Link>
   )
 }

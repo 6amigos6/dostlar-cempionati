@@ -39,7 +39,7 @@ export default function Bracket() {
     <div>
       <div className="section-title"><h2>Playoff Bracket</h2></div>
       {rounds.length === 0
-        ? <EmptyState emoji="🏆" title="Hələ püşkatma edilməyib" sub="Admin panelindən draw yaradın." />
+        ? <EmptyState emoji="🏆" title="Hələ püşkatma edilməyib" sub="Admin panelindən Tənzimləmələr → Çempionatı başlat ilə püşkatma çəkin." />
         : <BracketGrid rounds={rounds} teams={teams} />}
     </div>
   )

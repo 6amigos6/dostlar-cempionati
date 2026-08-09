@@ -31,9 +31,6 @@ export default function Champion() {
             </div>
           </div>
         )}
-        {activeTournament.finalMvp && (
-          <div className="chip" style={{ marginTop: 16, display: 'inline-block' }}>⭐ Finalın ən yaxşı oyunçusu: {activeTournament.finalMvp}</div>
-        )}
       </div>
     </div>
   )

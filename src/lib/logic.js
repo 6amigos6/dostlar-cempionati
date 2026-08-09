@@ -3,8 +3,16 @@
 
 export const AVATAR_PALETTE = ['#1FA35C', '#D4AF37', '#2563EB', '#DC2626', '#7C3AED', '#EA580C', '#0D9488', '#DB2777']
 
-export function initials(firstName = '', lastName = '') {
-  return `${(firstName[0] || '').toUpperCase()}${(lastName[0] || '').toUpperCase()}` || '?'
+export function playerName(p) {
+  if (!p) return ''
+  return p.name || [p.firstName, p.lastName].filter(Boolean).join(' ')
+}
+
+export function initials(name = '') {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean)
+  const first = (parts[0]?.[0] || '').toUpperCase()
+  const second = (parts[1]?.[0] || '').toUpperCase()
+  return `${first}${second}` || '?'
 }
 
 export function avatarColorFor(seedStr = '') {
@@ -121,18 +129,6 @@ export function computeStandings(teamIds, matches, pointsRule = DEFAULT_POINTS) 
     })
   Object.values(table).forEach((t) => { t.gd = t.gf - t.ga; t.form = t.form.slice(-5) })
   return Object.values(table).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
-}
-
-// Oyunçu üçün ümumi reytinq (0-99). Nəzərə alınır: qol, assist, qələbə, MVP, oyun sayı.
-export function computePlayerRating(p) {
-  const goals = p.goals || 0
-  const assists = p.assists || 0
-  const wins = p.wins || 0
-  const mvps = p.mvpCount || 0
-  const games = p.gamesPlayed || 0
-  if (games === 0) return 50
-  const raw = 50 + goals * 2.2 + assists * 1.6 + wins * 0.8 + mvps * 4 - (p.redCards || 0) * 2
-  return Math.max(1, Math.min(99, Math.round(raw / Math.max(1, games / 6))))
 }
 
 export function formatDateTimeBaku(ts) {

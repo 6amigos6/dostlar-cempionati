@@ -29,15 +29,6 @@ export default function Teams() {
           <div className="card"><div className="muted" style={{ fontSize: 11 }}>Xal</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--gold)' }}>{(team.won || 0) * 3 + (team.drawn || 0)}</div></div>
         </div>
 
-        {team.championships?.length > 0 && (
-          <>
-            <div className="section-title"><h2>🏆 Çempionluqlar</h2></div>
-            <div className="card">
-              {team.championships.map((c, i) => <div key={i} className="chip" style={{ marginRight: 6, marginBottom: 6, display: 'inline-block' }}>🏆 {c}</div>)}
-            </div>
-          </>
-        )}
-
         <div className="section-title"><h2>Oyunçular ({roster.length})</h2></div>
         {roster.length === 0
           ? <EmptyState emoji="👤" title="Bu komandada hələ oyunçu yoxdur" />

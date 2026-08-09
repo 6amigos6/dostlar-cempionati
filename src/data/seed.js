@@ -3,8 +3,7 @@ import { ref, set } from 'firebase/database'
 import { uid, generatePlayoffRound, AVATAR_PALETTE } from '../lib/logic'
 
 const TEAM_NAMES = ['Alov FC', 'Zümrüd United', 'Qartallar', 'Şimşək', 'Dəniz Kənarı', 'Polad Gücü', 'Ulduz FK', 'Tufan City']
-const FIRST_NAMES = ['Elvin', 'Kamran', 'Tural', 'Vüsal', 'Orxan', 'Rəşad', 'Anar', 'Nicat', 'Fərid', 'Murad', 'Emin', 'Ceyhun', 'Samir', 'Ruslan', 'Elnur', 'Kənan', 'Toğrul', 'Nurlan', 'Sənan', 'Vasif', 'Elgün', 'Rauf', 'Ayxan', 'Turqut', 'Mahir', 'Rövşən', 'Fuad', 'Zaur', 'Cavid', 'Elmar', 'Xəyal', 'Namiq']
-const LAST_NAMES = ['Əliyev', 'Məmmədov', 'Hüseynov', 'Quliyev', 'Rəhimov', 'İbrahimov', 'Cəfərov', 'Nəbiyev', 'Abbasov', 'Vəliyev']
+const PLAYER_NAMES = ['Elvin Əliyev', 'Kamran Məmmədov', 'Tural Hüseynov', 'Vüsal Quliyev', 'Orxan Rəhimov', 'Rəşad İbrahimov', 'Anar Cəfərov', 'Nicat Nəbiyev', 'Fərid Abbasov', 'Murad Vəliyev', 'Emin Qarayev', 'Ceyhun Səfərov', 'Samir Nəsirov', 'Ruslan Həsənov', 'Elnur Qasımov', 'Kənan Rzayev', 'Toğrul Ağayev', 'Nurlan Səlimov', 'Sənan Qurbanov', 'Vasif Orucov', 'Elgün Mustafayev', 'Rauf Hacıyev', 'Ayxan İsmayılov', 'Turqut Süleymanov', 'Mahir Talıbov', 'Rövşən Bağırov', 'Fuad Qocayev', 'Zaur Əhmədov', 'Cavid Vəliyev', 'Elmar Hümbətov', 'Xəyal Məlikov', 'Namiq Şərifov']
 const POSITIONS = ['Qapıçı', 'Müdafiəçi', 'Yarımmüdafiəçi', 'Hücumçu']
 
 function pick(arr, i) { return arr[i % arr.length] }
@@ -27,19 +26,14 @@ export async function seedDemoData() {
       const id = uid('player')
       const idx = tIdx * 4 + j
       playersObj[id] = {
-        firstName: pick(FIRST_NAMES, idx),
-        lastName: pick(LAST_NAMES, idx + tIdx),
-        nickname: '',
+        name: pick(PLAYER_NAMES, idx),
         number: j + 1,
         position: pick(POSITIONS, j),
         teamId,
-        gamesPlayed: Math.floor(Math.random() * 5) + 1,
-        wins: Math.floor(Math.random() * 3),
         goals: j === 3 ? Math.floor(Math.random() * 8) : Math.floor(Math.random() * 3),
         assists: Math.floor(Math.random() * 4),
         yellowCards: Math.floor(Math.random() * 2),
         redCards: 0,
-        mvpCount: 0,
         createdAt: Date.now(),
       }
     }
@@ -54,12 +48,12 @@ export async function seedDemoData() {
 
   const tourId = uid('tour')
   const tournament = {
-    name: 'Dostlar Çempionatı 2026',
+    name: 'Çempionlar Liqası 2026',
     season: 2026,
     startDate: null,
     endDate: null,
     format: 'knockout',
-    hasThirdPlace: true,
+    hasThirdPlace: false,
     seeded: false,
     matchDuration: 90,
     pointsRule: { win: 3, draw: 1, loss: 0 },

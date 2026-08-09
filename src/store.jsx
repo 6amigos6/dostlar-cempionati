@@ -1,9 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
-import { db, auth } from './firebase'
-import { ref, onValue, push, set, update, remove } from 'firebase/database'
-import {
-  onAuthStateChanged, signInWithEmailAndPassword, signOut,
-} from 'firebase/auth'
+import { db } from './firebase'
+import { ref, onValue, set, update, remove } from 'firebase/database'
 import {
   generatePlayoffRound, generateRoundRobin, buildNextRound, computeStandings, uid,
 } from './lib/logic'
@@ -29,13 +26,10 @@ export function AppProvider({ children }) {
   const [players, playersLoaded] = useCollection('players')
   const [teams, teamsLoaded] = useCollection('teams')
   const [tournaments, tournamentsLoaded] = useCollection('tournaments')
-  const [archive] = useCollection('archive')
   const [settings, settingsLoaded] = useCollection('settings')
-  const [user, setUser] = useState(undefined) // undefined = checking, null = signed out
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
   const [toast, setToast] = useState(null)
 
-  useEffect(() => onAuthStateChanged(auth, (u) => setUser(u || null)), [])
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
@@ -57,7 +51,6 @@ export function AppProvider({ children }) {
   const teamList = useMemo(() => Object.entries(teams).map(([id, t]) => ({ id, ...t })), [teams])
   const playerList = useMemo(() => Object.entries(players).map(([id, p]) => ({ id, ...p })), [players])
   const tournamentList = useMemo(() => Object.entries(tournaments).map(([id, t]) => ({ id, ...t })), [tournaments])
-  const archiveList = useMemo(() => Object.entries(archive).map(([id, t]) => ({ id, ...t })).sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0)), [archive])
 
   // ---------- Players ----------
   const addPlayer = useCallback((data) => {
@@ -78,7 +71,6 @@ export function AppProvider({ children }) {
   }, [])
   const updateTeam = useCallback((id, data) => update(ref(db, `teams/${id}`), data), [])
   const deleteTeam = useCallback((id) => remove(ref(db, `teams/${id}`)), [])
-  const assignPlayerToTeam = useCallback((playerId, teamId) => update(ref(db, `players/${playerId}`), { teamId }), [])
 
   // ---------- Tournaments ----------
   const createTournament = useCallback(async (data) => {
@@ -105,6 +97,12 @@ export function AppProvider({ children }) {
   }, [])
 
   const setActiveTournament = useCallback((id) => set(ref(db, 'settings/activeTournamentId'), id), [])
+  const deleteTournament = useCallback(async (id) => {
+    await Promise.all([
+      remove(ref(db, `tournaments/${id}`)),
+      set(ref(db, 'settings/activeTournamentId'), null),
+    ])
+  }, [])
   const updateTournament = useCallback((id, data) => update(ref(db, `tournaments/${id}`), data), [])
 
   // Draw / bracket generation, ya da liqa cədvəli
@@ -122,6 +120,34 @@ export function AppProvider({ children }) {
     matches.forEach((m) => { matchesObj[uid('m')] = { ...m, id: undefined } })
     await update(ref(db, `tournaments/${tournamentId}`), { matches: matchesObj, status: 'ACTIVE' })
   }, [tournaments])
+
+  // Tək çempionat modeli: yeni çempionat yaradır, püşkatmanı çəkir və aktiv edir
+  const startChampionship = useCallback(async (teamIds, format) => {
+    const id = uid('tour')
+    const matches = format === 'league' ? generateRoundRobin(teamIds) : generatePlayoffRound(teamIds, { seeded: false })
+    const matchesObj = {}
+    matches.forEach((m) => { matchesObj[uid('m')] = { ...m } })
+    const tour = {
+      name: 'Çempionlar Liqası',
+      season: new Date().getFullYear(),
+      format,
+      hasThirdPlace: false,
+      seeded: false,
+      matchDuration: 90,
+      pointsRule: { win: 3, draw: 1, loss: 0 },
+      teamIds,
+      status: 'ACTIVE',
+      matches: matchesObj,
+      champion: null,
+      finalMvp: null,
+      createdAt: Date.now(),
+    }
+    await Promise.all([
+      set(ref(db, `tournaments/${id}`), tour),
+      set(ref(db, 'settings/activeTournamentId'), id),
+    ])
+    return id
+  }, [])
 
   // Nəticə daxil et / redaktə et
   const recordResult = useCallback(async (tournamentId, matchId, result) => {
@@ -210,34 +236,12 @@ export function AppProvider({ children }) {
     notify('Növbəti mərhələ formalaşdı')
   }, [tournaments, notify])
 
-  const completeTournament = useCallback(async (tournamentId, { finalMvp } = {}) => {
-    const t = tournaments[tournamentId]
-    if (!t) return
-    const archiveId = tournamentId
-    await set(ref(db, `archive/${archiveId}`), {
-      ...t, finalMvp: finalMvp || t.finalMvp || null, status: 'ARCHIVED', finishedAt: t.finishedAt || Date.now(),
-    })
-    await update(ref(db, `tournaments/${tournamentId}`), { status: 'ARCHIVED' })
-    if (t.champion) {
-      const champ = teams[t.champion]
-      const champs = champ?.championships || []
-      await update(ref(db, `teams/${t.champion}`), { championships: [...champs, t.season || t.name] })
-    }
-    const cur = await new Promise((res) => onValue(ref(db, 'settings/activeTournamentId'), (s) => res(s.val()), { onlyOnce: true }))
-    if (cur === tournamentId) await set(ref(db, 'settings/activeTournamentId'), null)
-    notify('Turnir arxivə köçürüldü')
-  }, [tournaments, teams, notify])
-
-  // ---------- Auth ----------
-  const login = useCallback((email, password) => signInWithEmailAndPassword(auth, email, password), [])
-  const logout = useCallback(() => signOut(auth), [])
-
   const value = {
-    players, playerList, teams, teamList, tournaments, tournamentList, archive, archiveList,
-    activeTournament, activeTournamentId, loading, user, theme, toggleTheme, notify, toast,
-    addPlayer, updatePlayer, deletePlayer, addTeam, updateTeam, deleteTeam, assignPlayerToTeam,
-    createTournament, setActiveTournament, updateTournament, generateDraw, recordResult, setMatchLive,
-    updateMatch, deleteMatch, addMatch, addMatchEvent, advanceRound, completeTournament, login, logout,
+    players, playerList, teams, teamList, tournaments, tournamentList,
+    activeTournament, activeTournamentId, loading, theme, toggleTheme, notify, toast,
+    addPlayer, updatePlayer, deletePlayer, addTeam, updateTeam, deleteTeam,
+    createTournament, setActiveTournament, deleteTournament, updateTournament, generateDraw, startChampionship,
+    recordResult, setMatchLive, updateMatch, deleteMatch, addMatch, addMatchEvent, advanceRound,
     computeStandings,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

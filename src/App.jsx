@@ -9,9 +9,7 @@ import Matches from './pages/Matches.jsx'
 import Standings from './pages/Standings.jsx'
 import Bracket from './pages/Bracket.jsx'
 import Statistics from './pages/Statistics.jsx'
-import Archive from './pages/Archive.jsx'
 import Champion from './pages/Champion.jsx'
-import PublicTournament from './pages/PublicTournament.jsx'
 import Admin from './pages/Admin.jsx'
 
 const NAV = [
@@ -25,7 +23,6 @@ const MORE_LINKS = [
   { to: '/teams', label: 'Komandalar', emoji: '🛡️' },
   { to: '/players', label: 'Oyunçular', emoji: '👤' },
   { to: '/standings', label: 'Turnir Cədvəli', emoji: '📋' },
-  { to: '/archive', label: 'Turnir Arxivi', emoji: '🗄️' },
   { to: '/admin', label: 'Admin Panel', emoji: '🔐' },
 ]
 
@@ -70,10 +67,7 @@ export default function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/bracket" element={<Bracket />} />
             <Route path="/statistics" element={<Statistics />} />
-            <Route path="/archive" element={<Archive />} />
-            <Route path="/archive/:id" element={<Archive />} />
             <Route path="/champion" element={<Champion />} />
-            <Route path="/tournament/:id" element={<PublicTournament />} />
             <Route path="/admin/*" element={<Admin />} />
           </Routes>
         )}
