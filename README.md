@@ -1,106 +1,80 @@
-# Dostlar Çempionatı 🏆
+# Çempionlar Liqası — Turnir İdarəetmə Sistemi
 
-Dostlar arasında keçirilən futbol çempionatları üçün sadə, vizual, mobil-first
-sayt. Next.js 14 (App Router) + TypeScript + Tailwind CSS + Firebase Realtime
-Database ilə qurulub.
+Mobil-first, Firebase Realtime Database ilə işləyən futbol çempionatı idarəetmə platforması.
+React + Vite + Firebase (Realtime Database) ilə qurulub.
 
-## Xüsusiyyətlər
-
-- **İctimai səhifə (`/`)** — böyük kubok, qruplar, xal cədvəli, qarşılaşmalar,
-  çempion animasiyası, hamısı Firebase-dən **real vaxtda** yenilənir.
-- **Admin panel (`/admin`)** — şifrə ilə qorunur, 3 sadə bölmə:
-  - **Komandalar** — əlavə et / redaktə et / sil (Firebase-də daimi saxlanılır,
-    gələcək turnirlərdə yenidən istifadə olunur).
-  - **Çempionat** — komandaları seç, qrup sayını təyin et, sistem avtomatik
-    təsadüfi qruplaşdırma və round-robin qarşılaşmalar yaradır. Nəticə daxil
-    etdikcə xal cədvəli avtomatik yenilənir. Bütün oyunlar bitəndə (və ya
-    "Turniri bitir" düyməsi ilə) sistem avtomatik çempionu müəyyən edir.
-  - **Tarixçə** — bitmiş turnirlər arxivlənir, yalnız oxumaq üçündür.
-- Oyunçu sistemi, əlavə statistika və mürəkkəb dashboard **yoxdur** — istəyə
-  görə maksimal sadə saxlanılıb.
-
-## Qurulum
+## 1. Quraşdırma
 
 ```bash
 npm install
 npm run dev
 ```
 
-Sayt `http://localhost:3000` ünvanında açılacaq.
+Brauzerdə `http://localhost:5173` açın. Mobil görünüşü görmək üçün brauzerin developer tools → mobile emülyasiyasından istifadə edin, ya da telefonunuzdan eyni Wi-Fi şəbəkəsində `npm run dev -- --host` ilə açın.
 
-### Mühit dəyişənləri
-
-Firebase konfiqurasiyası və admin şifrəsi `.env.local` faylında saxlanılır
-(artıq doldurulub, layihə ilə birlikdə gəlir). Nümunə üçün `.env.local.example`
-faylına bax:
-
-```
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
-NEXT_PUBLIC_ADMIN_PASSWORD=
-```
-
-Admin şifrəsini dəyişmək üçün `NEXT_PUBLIC_ADMIN_PASSWORD` dəyərini yenilə.
-
-## Firebase Realtime Database strukturu
-
-```
-teams/{teamId}            → { name, image }
-currentTournament         → { id, name, status, teams[], groups{}, matches{}, champion, createdAt }
-history/{tournamentId}    → currentTournament-un arxivlənmiş surəti
-```
-
-Firebase konsolunda Realtime Database qaydalarını layihənin ehtiyacına uyğun
-tənzimləməyi unutma (test rejimində hamı yaza bilər — məhsula keçməzdən əvvəl
-məsələn admin yazma girişini məhdudlaşdırmaq faydalıdır).
-
-## Vercel-ə deploy
-
+Production build üçün:
 ```bash
 npm run build
+npm run preview
+```
+`dist/` qovluğunu istənilən statik hosting-ə (Firebase Hosting, Vercel, Netlify) yükləyə bilərsiniz.
+
+## 2. Firebase quraşdırılması (VACİB)
+
+Kodda artıq sizin verdiyiniz Firebase config (`src/firebase.js`) daxil edilib. Amma layihənin işləməsi üçün Firebase Console-da 2 şeyi etməlisiniz:
+
+### a) Admin şifrəsi
+1. Saytda `/admin` səhifəsinə keçin.
+2. Şifrə sahəsinə `gasham` yazıb **Daxil ol** düyməsinə basın.
+
+> Qeyd: Bu sadə şifrə yalnız brauzer tərəfində (client-side) yoxlanılır və `sessionStorage`-də saxlanılır. Daha ciddi mühafizə üçün Firebase Authentication (email/password) + Realtime Database Rules ilə real giriş sistemi qurmaq lazımdır.
+
+### b) Realtime Database Rules
+Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdakını yapışdırın (hər kəs oxuya bilsin, admin paneldən yazımlar işləsin):
+
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
 ```
 
-Layihəni GitHub-a push et və Vercel-də import et, ya da:
+> Qeyd: Admin panel artıq Firebase Authentication-dan istifadə etmədiyi üçün Rules-də `.write: "auth != null"` qalsa, admin paneldən yazılan məlumatlar geri çevriləcək (icazə xətası). Məlumatların tam ictimai olmasını istəmirsinizsə, Firebase Authentication ilə real admin girişi qurun.
 
-```bash
-npx vercel
-```
+## 3. Sistemin quruluşu
 
-Vercel paneldə yuxarıdakı mühit dəyişənlərini `Environment Variables`
-bölməsində əlavə etməyi unutma.
+- `src/firebase.js` — Firebase konfiqurasiyası
+- `src/store.jsx` — bütün database oxuma/yazma məntiqi (React Context, `useApp()` hook-u ilə istənilən komponentdən istifadə olunur)
+- `src/lib/logic.js` — turnir "beyni": qrup bölgüsü, püşkatma, avtomatik playoff keçidi, xal cədvəli hesablanması
+- `src/pages/*` — hər bölmə üçün səhifə (Home, Teams, Matches, Standings, Bracket, Statistics, Archive, Champion, Admin)
+- `src/data/seed.js` — Demo Data generatoru (Admin → Tənzimləmələr → "Demo data yarat")
 
-## Fayl strukturu
+## 4. İş axını (admin üçün)
 
-```
-src/
-  app/
-    layout.tsx        → şrift və qlobal stil
-    page.tsx           → ictimai səhifə
-    admin/page.tsx      → admin panel
-    globals.css
-  components/
-    TrophyHero.tsx
-    ChampionBanner.tsx
-    GroupsSection.tsx
-    MatchesSection.tsx
-    HistorySection.tsx
-    Confetti.tsx
-    PublicSite.tsx
-    admin/
-      AdminApp.tsx
-      TeamsTab.tsx
-      TournamentTab.tsx
-  hooks/
-    useFirebaseValue.ts → realtime Firebase abunəlik hook-u
-  lib/
-    firebase.ts
-    types.ts
-    standings.ts        → xal cədvəli / sıralama məntiqi
-    teamActions.ts
-    tournamentActions.ts
-```
+1. `/admin`-dən daxil ol.
+2. **Komandalar** bölməsindən komandalar yarat.
+3. **Tənzimləmələr → "Çempionatı başlat"** düyməsi ilə **Qarşılaşma modu** seç: komandalar avtomatik olaraq təsadüfi şəkildə A, B, C... qruplarına bölünür və qrup oyunları yaradılır.
+4. **Oyunlar** tabından nəticələri daxil et — xal cədvəli (3/1/0) avtomatik yenilənir.
+5. Qrup mərhələsi bitdikdə sistem avtomatik olaraq playoff (Rübfinal → Yarımfinal → Final) formalaşdırır; hər raund bitdikdə növbəti mərhələ avtomatik qurulur.
+6. Final bitdikdə çempion müəyyənləşir, turnir tam məlumatla **Tarixçə / Arxiv** bölməsinə avtomatik köçürülür.
+7. User paneldə `Tarixçə` bölməsindən əvvəlki turnirlərə baxmaq, Admin paneldə isə silmək mümkündür (təsdiq pəncərəsi ilə).
+
+## 5. Nəyin daxil olduğu / hazırkı hüdudlar
+
+Bu, real Firebase backend-i olan tam işlək bir sistemdir (məlumatlar `localStorage`-da deyil, Realtime Database-də saxlanılır və bütün istifadəçilər üçün canlı sinxronlaşır). Aşağıdakılar realdır və işləyir:
+
+- Komanda CRUD, tək çempionat modeli (Çempionlar Liqası üslubu)
+- **Qarşılaşma modu**: komandalar təsadüfi qruplara bölünür (A, B, C...), qrup daxilində round-robin oyunları avtomatik yaradılır
+- Qrup mərhələsi bitdikdə playoff avtomatik formalaşır (hər qrupdan ilk 2 + ən yaxşı 3-cülər); hər raund nəticələrə görə avtomatik irəliləyir
+- Nəticə daxil etmə, avtomatik xal cədvəli (qələbə 3, heç-heçə 1), çempion müəyyənləşdirmə və kubok ekranı
+- Turnir bitdikdə avtomatik **arxivləşmə** (ad, tarix, komandalar, qruplar, oyunlar, nəticələr, xal cədvəli, final, çempion, statistikalar)
+- Canlı status (LIVE bayrağı + real-time Firebase sinxronizasiyası — admin nəticəni dəyişən kimi bütün istifadəçilərdə səhifə yeniləmədən dəyişir)
+- Dark/Light rejim, mobil bottom navigation, playoff bracket görünüşü, komanda statistikaları
+
+Vaxt məhdudiyyəti səbəbindən aşağıdakılar **sadələşdirilib** və istəsəniz üzərində davam edə bilərik:
+- Push/browser notifikasiyaları (bölmə 25) əlavə edilməyib
+- Oyunçu sistemi — hazırkı versiyada oyunçu əlavə etmək imkanı yoxdur (yalnız komandalar); istəsəniz yenidən əlavə edilə bilər
+- 3-cü yer uğrunda oyun və seed sistemi (reytinqə görə yerləşdirmə) əlavə edilməyib
+- Log/audit tarixçəsi (bölmə 27) hələ ayrıca ekranda göstərilmir, lakin Firebase Realtime Database-in özü bütün dəyişiklikləri saxlayır
