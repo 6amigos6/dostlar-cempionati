@@ -44,7 +44,7 @@ export default function TournamentView({ tournament, teams }) {
   const groupTables = useMemo(() => {
     if (!groups) return null
     const out = {}
-    Object.entries(groups).forEach(([letter, ids]) => {
+    Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).forEach(([letter, ids]) => {
       out[letter] = computeStandings(ids, matches.filter((m) => m.group === letter), t.pointsRule)
     })
     return out
@@ -58,7 +58,15 @@ export default function TournamentView({ tournament, teams }) {
       .sort((a, b) => b.matches.length - a.matches.length) // 1/4 → 1/2 → Final
   }, [t])
 
-  const groupMatches = matches.filter((m) => m.group)
+  const groupMatches = matches
+    .filter((m) => m.group)
+    .sort((a, b) => {
+      const ga = a.group || '', gb = b.group || ''
+      if (ga !== gb) return ga.localeCompare(gb)
+      const ta = Number(/(\d+)/.exec(a.round || '')?.[1] || 0)
+      const tb = Number(/(\d+)/.exec(b.round || '')?.[1] || 0)
+      return ta - tb
+    })
   const leagueTable = (!groups && t.format === 'league') ? computeStandings(t.teamIds || [], matches, t.pointsRule) : null
 
   const stageLabel = t.stage === 'groups' ? 'Qrup mərhələsi' : t.stage === 'knockout' ? 'Playoff' : 'Liqa'

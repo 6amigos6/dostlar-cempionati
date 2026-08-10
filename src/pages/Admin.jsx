@@ -230,6 +230,16 @@ function buildTournamentPlan(t, nameOf) {
   return stages
 }
 
+// Raundları ardıcıl sıralamaq üçün açar: A qrupu Tur 1 → ... → B qrupu → Playoff → Final
+function roundOrder(round = '') {
+  const gm = /^([A-Z]) qrupu · Tur (\d+)$/i.exec(round)
+  if (gm) return [0, gm[1].toUpperCase().charCodeAt(0), Number(gm[2])]
+  const lm = /^Tur (\d+)$/i.exec(round)
+  if (lm) return [1, Number(lm[1]), 0]
+  const order = { '1/8 Final': 20, '1/4 Final': 30, '1/2 Final': 40, 'Final': 50 }
+  return [2, order[round] != null ? order[round] : 99, 0]
+}
+
 function PlanCard({ plan }) {
   return (
     <div className="card">
@@ -319,7 +329,10 @@ function ChampionshipTab({ ask }) {
   }
 
   const matches = Object.values(activeTournament.matches || {})
-  const rounds = [...new Set(matches.map((m) => m.round))]
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => {
+    const ka = roundOrder(a), kb = roundOrder(b)
+    return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2]
+  })
   const stageLabel = activeTournament.stage === 'groups' ? 'Qrup mərhələsi' : activeTournament.stage === 'knockout' ? 'Playoff' : 'Liqa'
   const groups = activeTournament.groups || null
   const nameOf = (id) => teams[id]?.name || 'TBD'
@@ -340,7 +353,7 @@ function ChampionshipTab({ ask }) {
 
       {groups && (
         <div className="stack-8" style={{ marginBottom: 12 }}>
-          {Object.entries(groups).map(([letter, ids]) => {
+          {Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([letter, ids]) => {
             const rows = computeStandings(ids, matches.filter((m) => m.group === letter), activeTournament.pointsRule)
             return (
               <div className="card" key={letter}>
@@ -364,7 +377,9 @@ function ChampionshipTab({ ask }) {
         <div key={round} className="card" style={{ marginBottom: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 8 }}>{round}</div>
           <div className="stack-8">
-            {matches.filter((m) => m.round === round).map((m) => {
+            {matches.filter((m) => m.round === round)
+              .sort((a, b) => nameOf(a.teamA).localeCompare(nameOf(b.teamA)))
+              .map((m) => {
               const isPlayed = played(m)
               return (
                 <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
