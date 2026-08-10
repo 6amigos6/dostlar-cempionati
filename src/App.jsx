@@ -4,30 +4,21 @@ import { useApp } from './store.jsx'
 
 import Home from './pages/Home.jsx'
 import Teams from './pages/Teams.jsx'
-import Matches from './pages/Matches.jsx'
-import Standings from './pages/Standings.jsx'
-import Bracket from './pages/Bracket.jsx'
-import Statistics from './pages/Statistics.jsx'
 import Archive from './pages/Archive.jsx'
-import Champion from './pages/Champion.jsx'
 import Admin from './pages/Admin.jsx'
 
 const NAV = [
-  { to: '/', label: 'Ana səhifə', emoji: '🏠' },
-  { to: '/matches', label: 'Qarşılaşmalar', emoji: '⚽' },
-  { to: '/bracket', label: 'Turnir', emoji: '🏆' },
-  { to: '/statistics', label: 'Statistika', emoji: '📊' },
+  { to: '/', label: 'Çempionat', emoji: '🏆' },
+  { to: '/teams', label: 'Komandalar', emoji: '🛡️' },
+  { to: '/archive', label: 'Tarixçə', emoji: '🗄️' },
 ]
 
 const MORE_LINKS = [
-  { to: '/teams', label: 'Komandalar', emoji: '🛡️' },
-  { to: '/standings', label: 'Turnir Cədvəli', emoji: '📋' },
-  { to: '/archive', label: 'Tarixçə / Arxiv', emoji: '🗄️' },
   { to: '/admin', label: 'Admin Panel', emoji: '🔐' },
 ]
 
 export default function App() {
-  const { theme, toggleTheme, toast, loading } = useApp()
+  const { toast, loading } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -38,19 +29,14 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <Link to="/" className="brand">
-          <span className="brand-mark">⚽</span>
-          Dostlar Çempionatı
+          <span className="brand-mark">🏆</span>
+          Çempionlar Liqası
         </Link>
         <nav className="desktop-nav">
           {[...NAV, ...MORE_LINKS].map((l) => (
             <Link key={l.to} to={l.to} className={isActive(l.to) ? 'active' : ''}>{l.label}</Link>
           ))}
         </nav>
-        <div className="topbar-actions">
-          <button className="icon-btn" onClick={toggleTheme} aria-label="Tema dəyiş">
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
-        </div>
       </header>
 
       <main className="app-main">
@@ -61,13 +47,8 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/teams" element={<Teams />} />
             <Route path="/teams/:id" element={<Teams />} />
-            <Route path="/matches" element={<Matches />} />
-            <Route path="/standings" element={<Standings />} />
-            <Route path="/bracket" element={<Bracket />} />
-            <Route path="/statistics" element={<Statistics />} />
             <Route path="/archive" element={<Archive />} />
             <Route path="/archive/:id" element={<Archive />} />
-            <Route path="/champion" element={<Champion />} />
             <Route path="/admin/*" element={<Admin />} />
           </Routes>
         )}

@@ -1,39 +1,28 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
-import { avatarColorFor, formatDateTimeBaku } from './lib/logic'
+import { avatarColorFor } from './lib/logic'
 
 export function TeamLogo({ team, size = 46 }) {
-  if (!team) return <div className="team-logo" style={{ width: size, height: size, background: 'var(--elevated)' }}>?</div>
-  if (team.logoUrl) {
-    return <div className="team-logo" style={{ width: size, height: size, backgroundImage: `url(${team.logoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+  const style = { width: size, height: size }
+  if (team?.logoUrl) {
+    return <div className="team-logo" style={{ ...style, backgroundImage: `url(${team.logoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
   }
-  const color = team.color || avatarColorFor(team.name || team.id)
+  const color = team?.color || avatarColorFor(team?.name || team?.id || '')
   return (
-    <div className="team-logo" style={{ width: size, height: size, background: color, fontSize: size * 0.36 }}>
-      {(team.name || '?').slice(0, 2).toUpperCase()}
+    <div className="team-logo" style={{ ...style, background: `linear-gradient(135deg, ${color}, ${color}99)`, fontSize: size * 0.42 }}>
+      🛡️
     </div>
   )
 }
 
-export function StatusBadge({ status }) {
-  const labels = { LIVE: 'Canlı', UPCOMING: 'Planlaşdırılıb', FINISHED: 'Bitib', POSTPONED: 'Təxirə salınıb', CANCELLED: 'Ləğv edilib' }
+export function MatchCard({ match, teams }) {
+  const teamA = teams?.[match.teamA]
+  const teamB = teams?.[match.teamB]
+  const hasScore = match.scoreA != null && match.scoreB != null
   return (
-    <span className={`status-badge status-${status}`}>
-      {status === 'LIVE' && <span className="live-dot" />}
-      {labels[status] || status}
-    </span>
-  )
-}
-
-export function MatchCard({ match, teams, onClick }) {
-  const teamA = teams[match.teamA]
-  const teamB = teams[match.teamB]
-  const hasScore = match.status === 'FINISHED' || match.status === 'LIVE'
-  return (
-    <div className="card match-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+    <div className="card match-card">
       <div className="match-meta">
         <span className="match-round-tag">{match.round}</span>
-        <StatusBadge status={match.status} />
       </div>
       <div className="match-teams">
         <div className="match-team">
@@ -43,7 +32,7 @@ export function MatchCard({ match, teams, onClick }) {
         <div className="score-board">
           {hasScore ? (
             <>
-              <span>{match.scoreA ?? 0}</span><span className="dash">:</span><span>{match.scoreB ?? 0}</span>
+              <span>{match.scoreA}</span><span className="dash">:</span><span>{match.scoreB}</span>
             </>
           ) : (
             <span style={{ fontSize: 15, color: 'var(--ink-muted)' }}>vs</span>
@@ -56,9 +45,6 @@ export function MatchCard({ match, teams, onClick }) {
       </div>
       {match.penA != null && match.penB != null && (
         <div className="match-pen">Penaltilər: {match.penA} - {match.penB}</div>
-      )}
-      {match.startTime && (
-        <div className="match-pen">{formatDateTimeBaku(match.startTime)}{match.venue ? ` · ${match.venue}` : ''}</div>
       )}
     </div>
   )
@@ -87,27 +73,6 @@ export function EmptyState({ emoji = '⚽', title, sub }) {
       <span className="emoji">{emoji}</span>
       <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>{title}</div>
       {sub && <div style={{ fontSize: 12.5 }}>{sub}</div>}
-    </div>
-  )
-}
-
-export function Countdown({ target }) {
-  const [left, setLeft] = useState(target - Date.now())
-  useEffect(() => {
-    const t = setInterval(() => setLeft(target - Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [target])
-  if (left <= 0) return <div className="countdown"><div className="countdown-unit"><b>🔴</b><span>Başladı</span></div></div>
-  const d = Math.floor(left / 86400000)
-  const h = Math.floor((left % 86400000) / 3600000)
-  const m = Math.floor((left % 3600000) / 60000)
-  const s = Math.floor((left % 60000) / 1000)
-  const units = [[d, 'Gün'], [h, 'Saat'], [m, 'Dəq'], [s, 'San']]
-  return (
-    <div className="countdown">
-      {units.map(([v, l]) => (
-        <div className="countdown-unit" key={l}><b>{String(v).padStart(2, '0')}</b><span>{l}</span></div>
-      ))}
     </div>
   )
 }

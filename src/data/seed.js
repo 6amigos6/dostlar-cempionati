@@ -11,7 +11,7 @@ export async function seedDemoData() {
     const id = uid('team')
     teamIds.push(id)
     teamsObj[id] = {
-      name, color: AVATAR_PALETTE[i % AVATAR_PALETTE.length], played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0,
+      name, logoUrl: '', played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0,
       createdAt: Date.now(),
     }
   })
@@ -19,10 +19,7 @@ export async function seedDemoData() {
   const groups = splitIntoGroups(teamIds)
   const matches = generateGroupMatches(groups)
   const matchesObj = {}
-  const now = Date.now()
-  matches.forEach((m, i) => {
-    matchesObj[uid('m')] = { ...m, startTime: now + (i + 1) * 3600 * 1000 * 6, venue: 'Olimpiya Stadionu' }
-  })
+  matches.forEach((m) => { matchesObj[uid('m')] = { ...m } })
 
   const tourId = uid('tour')
   const tournament = {
@@ -31,15 +28,10 @@ export async function seedDemoData() {
     format: 'groups',
     groups,
     stage: 'groups',
-    hasThirdPlace: false,
-    seeded: false,
-    matchDuration: 90,
     pointsRule: { win: 3, draw: 1, loss: 0 },
     teamIds,
-    status: 'ACTIVE',
     matches: matchesObj,
     champion: null,
-    finalMvp: null,
     createdAt: Date.now(),
   }
 

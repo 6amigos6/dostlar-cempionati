@@ -9,6 +9,11 @@ export function avatarColorFor(seedStr = '') {
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
 }
 
+// Qarşılaşmanın oynanıb-oynanılmadığını yoxlayır (nəticə daxil olub-olmamasına görə)
+export function matchPlayed(m) {
+  return !!m && m.scoreA != null && m.scoreB != null
+}
+
 // Fisher-Yates shuffle — ədalətli təsadüfi püşkatma
 export function shuffle(arr) {
   const a = [...arr]
@@ -95,7 +100,6 @@ export function generatePlayoffRound(teamIds, { seeded = false } = {}) {
       teamA: ordered[i] || null,
       teamB: ordered[i + 1] || null,
       round: roundNameForSize(ordered.length),
-      status: 'UPCOMING',
       scoreA: null,
       scoreB: null,
     })
@@ -112,7 +116,7 @@ export function buildNextRound(finishedMatches) {
 }
 
 export function winnerOf(match) {
-  if (match.status !== 'FINISHED') return null
+  if (!matchPlayed(match)) return null
   if (match.scoreA > match.scoreB) return match.teamA
   if (match.scoreB > match.scoreA) return match.teamB
   if (match.penA != null && match.penB != null) {
@@ -134,7 +138,7 @@ export function generateRoundRobin(teamIds) {
       const a = arr[i]
       const b = arr[arr.length - 1 - i]
       if (a && b) {
-        matches.push({ teamA: a, teamB: b, round: `Tur ${r + 1}`, status: 'UPCOMING', scoreA: null, scoreB: null })
+        matches.push({ teamA: a, teamB: b, round: `Tur ${r + 1}`, scoreA: null, scoreB: null })
       }
     }
     arr = [arr[0], ...arr.slice(-1), ...arr.slice(1, -1)]
@@ -151,7 +155,7 @@ export function computeStandings(teamIds, matches, pointsRule = DEFAULT_POINTS) 
     table[id] = { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, pts: 0, form: [] }
   })
   matches
-    .filter((m) => m.status === 'FINISHED' && m.teamA && m.teamB && table[m.teamA] && table[m.teamB])
+    .filter((m) => matchPlayed(m) && m.teamA && m.teamB && table[m.teamA] && table[m.teamB])
     .sort((a, b) => (a.playedAt || 0) - (b.playedAt || 0))
     .forEach((m) => {
       const A = table[m.teamA]

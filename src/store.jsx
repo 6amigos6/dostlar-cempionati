@@ -3,7 +3,7 @@ import { db } from './firebase'
 import { ref, onValue, set, update, remove } from 'firebase/database'
 import {
   generatePlayoffRound, generateRoundRobin, generateGroupMatches, splitIntoGroups,
-  buildKnockoutFromGroups, buildNextRound, computeStandings, uid,
+  buildKnockoutFromGroups, buildNextRound, computeStandings, matchPlayed, uid,
 } from './lib/logic'
 
 const AppCtx = createContext(null)
@@ -28,13 +28,9 @@ export function AppProvider({ children }) {
   const [tournaments, tournamentsLoaded] = useCollection('tournaments')
   const [archive, archiveLoaded] = useCollection('archive')
   const [settings, settingsLoaded] = useCollection('settings')
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
   const [toast, setToast] = useState(null)
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+  useEffect(() => { document.documentElement.setAttribute('data-theme', 'dark') }, [])
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 2600)
@@ -42,7 +38,6 @@ export function AppProvider({ children }) {
   }, [toast])
 
   const notify = useCallback((msg) => setToast(msg), [])
-  const toggleTheme = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), [])
 
   const loading = !teamsLoaded || !tournamentsLoaded || !archiveLoaded || !settingsLoaded
 
@@ -50,7 +45,6 @@ export function AppProvider({ children }) {
   const activeTournament = activeTournamentId ? { id: activeTournamentId, ...tournaments[activeTournamentId] } : null
 
   const teamList = useMemo(() => Object.entries(teams).map(([id, t]) => ({ id, ...t })), [teams])
-  const tournamentList = useMemo(() => Object.entries(tournaments).map(([id, t]) => ({ id, ...t })), [tournaments])
   const archiveList = useMemo(() => Object.entries(archive)
     .map(([id, t]) => ({ id, ...t }))
     .sort((a, b) => (b.archivedAt || b.finishedAt || 0) - (a.archivedAt || a.finishedAt || 0)), [archive])
@@ -66,16 +60,6 @@ export function AppProvider({ children }) {
   const deleteTeam = useCallback((id) => remove(ref(db, `teams/${id}`)), [])
 
   // ---------- Çempionat ----------
-  const setActiveTournament = useCallback((id) => set(ref(db, 'settings/activeTournamentId'), id), [])
-  const deleteTournament = useCallback(async (id) => {
-    await Promise.all([
-      remove(ref(db, `tournaments/${id}`)),
-      set(ref(db, 'settings/activeTournamentId'), null),
-    ])
-  }, [])
-  const updateTournament = useCallback((id, data) => update(ref(db, `tournaments/${id}`), data), [])
-
-  // Püşkatma: qrup mərhələsi və ya birbaşa playoff / liqa cədvəli
   const generateDraw = useCallback(async (tournamentId) => {
     const t = tournaments[tournamentId]
     if (!t) return
@@ -87,13 +71,13 @@ export function AppProvider({ children }) {
     } else if (t.format === 'league') {
       matches = generateRoundRobin(t.teamIds)
     } else {
-      matches = generatePlayoffRound(t.teamIds, { seeded: t.seeded })
+      matches = generatePlayoffRound(t.teamIds, { seeded: false })
     }
     const matchesObj = {}
     matches.forEach((m) => { matchesObj[uid('m')] = { ...m, id: undefined } })
     await update(ref(db, `tournaments/${tournamentId}`), {
-      matches: matchesObj, groups, stage: t.format === 'groups' ? 'groups' : 'knockout',
-      champion: null, status: 'ACTIVE',
+      matches: matchesObj, groups, stage: t.format === 'groups' ? 'groups' : t.format === 'league' ? 'league' : 'knockout',
+      champion: null,
     })
   }, [tournaments])
 
@@ -114,15 +98,10 @@ export function AppProvider({ children }) {
       format, // 'groups' | 'knockout' | 'league'
       groups,
       stage: format === 'groups' ? 'groups' : format === 'league' ? 'league' : 'knockout',
-      hasThirdPlace: false,
-      seeded: false,
-      matchDuration: 90,
       pointsRule: { win: 3, draw: 1, loss: 0 },
       teamIds,
-      status: 'ACTIVE',
       matches: matchesObj,
       champion: null,
-      finalMvp: null,
       createdAt: Date.now(),
     }
     await Promise.all([
@@ -144,17 +123,16 @@ export function AppProvider({ children }) {
     const matches = Object.values(t.matches || {})
     const groupStandings = {}
     Object.entries(t.groups || {}).forEach(([letter, ids]) => {
-      groupStandings[letter] = computeStandings(ids, matches, t.pointsRule)
+      groupStandings[letter] = computeStandings(ids, matches.filter((m) => m.group === letter), t.pointsRule)
     })
     const teamsInfo = {}
     t.teamIds.forEach((id) => {
       const tm = teams[id]
-      if (tm) teamsInfo[id] = { name: tm.name, color: tm.color, logoUrl: tm.logoUrl || null }
+      if (tm) teamsInfo[id] = { name: tm.name, logoUrl: tm.logoUrl || null }
     })
     const entry = {
       ...t,
       champion,
-      status: 'FINISHED',
       finishedAt: now,
       archivedAt: now,
       groupStandings,
@@ -165,7 +143,7 @@ export function AppProvider({ children }) {
       remove(ref(db, `tournaments/${tournamentId}`)),
       set(ref(db, 'settings/activeTournamentId'), null),
     ])
-    notify(`🏆 ${teams[champion]?.name || 'Komanda'} kuboku qazandı!`)
+    notify(`🏆 ${teams[champion]?.name || 'Komanda'} çempion oldu!`)
   }, [teams, notify])
 
   // Playoff mərhələsi bitdikdə növbəti raundu avtomatik qurur
@@ -176,7 +154,7 @@ export function AppProvider({ children }) {
     ko.forEach((m) => { (byRound[m.round] = byRound[m.round] || []).push(m) })
     const roundName = Object.keys(byRound).sort((a, b) => byRound[b].length - byRound[a].length)[0]
     const current = byRound[roundName] || []
-    if (current.length === 0 || current.some((m) => m.status !== 'FINISHED')) return
+    if (current.length === 0 || current.some((m) => !matchPlayed(m))) return
     const { matches: nextMatches, champion } = buildNextRound(current)
     if (champion) {
       await finalizeTournament(tournamentId, { ...t, matches }, champion)
@@ -186,10 +164,10 @@ export function AppProvider({ children }) {
     }
   }, [finalizeTournament, addMatchesToTournament, notify])
 
-  // Nəticə daxil et — mərhələlər və çempion avtomatik formalaşır
+  // Nəticə daxil et — xal, cədvəl və mərhələlər avtomatik yenilənir
   const recordResult = useCallback(async (tournamentId, matchId, result) => {
     const path = `tournaments/${tournamentId}/matches/${matchId}`
-    await update(ref(db, path), { ...result, status: 'FINISHED', playedAt: result.playedAt || Date.now() })
+    await update(ref(db, path), { ...result, playedAt: result.playedAt || Date.now() })
     const t = tournaments[tournamentId]
     const m = t?.matches?.[matchId]
     if (!t || !m) return
@@ -216,12 +194,12 @@ export function AppProvider({ children }) {
     }
 
     const patched = { ...t.matches }
-    patched[matchId] = { ...m, ...result, status: 'FINISHED' }
+    patched[matchId] = { ...m, ...result }
 
     // Qrup mərhələsi bitdikdə playoff avtomatik qurulur
     if (t.format === 'groups' && t.stage === 'groups') {
       const groupMatches = Object.values(patched).filter((mm) => mm.group)
-      if (groupMatches.length > 0 && groupMatches.every((mm) => mm.status === 'FINISHED')) {
+      if (groupMatches.length > 0 && groupMatches.every(matchPlayed)) {
         const koMatches = buildKnockoutFromGroups({ ...t, matches: patched })
         await update(ref(db, `tournaments/${tournamentId}`), { stage: 'knockout' })
         await addMatchesToTournament(tournamentId, koMatches)
@@ -237,7 +215,7 @@ export function AppProvider({ children }) {
     // Liqa formatında bütün oyunlar bitəndə çempion müəyyənləşir
     if (t.format === 'league') {
       const allMatches = Object.values(patched)
-      if (allMatches.length > 0 && allMatches.every((mm) => mm.status === 'FINISHED')) {
+      if (allMatches.length > 0 && allMatches.every(matchPlayed)) {
         const table = computeStandings(t.teamIds, allMatches, t.pointsRule)
         await finalizeTournament(tournamentId, { ...t, matches: patched }, table[0]?.teamId)
         return
@@ -246,33 +224,25 @@ export function AppProvider({ children }) {
     notify('Nəticə yadda saxlanıldı')
   }, [tournaments, teams, addMatchesToTournament, maybeAdvanceKnockout, finalizeTournament, notify])
 
-  const setMatchLive = useCallback((tournamentId, matchId, isLive) => update(
-    ref(db, `tournaments/${tournamentId}/matches/${matchId}`),
-    { status: isLive ? 'LIVE' : 'UPCOMING', liveStartedAt: isLive ? Date.now() : null },
-  ), [])
-
-  const updateMatch = useCallback((tournamentId, matchId, data) => update(
-    ref(db, `tournaments/${tournamentId}/matches/${matchId}`), data,
-  ), [])
-
-  const deleteMatch = useCallback((tournamentId, matchId) => remove(
-    ref(db, `tournaments/${tournamentId}/matches/${matchId}`),
-  ), [])
-
-  const addMatch = useCallback((tournamentId, data) => set(
-    ref(db, `tournaments/${tournamentId}/matches/${uid('m')}`),
-    { status: 'UPCOMING', scoreA: null, scoreB: null, ...data },
-  ), [])
+  // "Turniri bitir" — çempion müəyyənləşibsə turniri arxivə köçürür
+  const finishTournament = useCallback(async (tournamentId) => {
+    const t = tournaments[tournamentId]
+    if (!t) return
+    if (t.champion) {
+      await finalizeTournament(tournamentId, t, t.champion)
+      return
+    }
+    notify('Çempion hələ müəyyənləşməyib — final oyununun nəticəsini daxil edin.')
+  }, [tournaments, finalizeTournament, notify])
 
   // ---------- Arxiv ----------
   const deleteArchivedTournament = useCallback((id) => remove(ref(db, `archive/${id}`)), [])
 
   const value = {
-    teams, teamList, tournaments, tournamentList, archive, archiveList,
-    activeTournament, activeTournamentId, loading, theme, toggleTheme, notify, toast,
+    teams, teamList, archive, archiveList,
+    activeTournament, activeTournamentId, loading, notify, toast,
     addTeam, updateTeam, deleteTeam,
-    setActiveTournament, deleteTournament, updateTournament, generateDraw, startChampionship,
-    recordResult, setMatchLive, updateMatch, deleteMatch, addMatch,
+    generateDraw, startChampionship, recordResult, finishTournament,
     deleteArchivedTournament, computeStandings,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
