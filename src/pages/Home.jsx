@@ -12,7 +12,7 @@ export default function Home() {
   if (!t) {
     return (
       <EmptyState
-        emoji="🏆"
+        emoji="⚽"
         title="Hələ çempionat yoxdur"
         sub="Çempionat yaradıldıqda turnir görünüşü burada göstəriləcək."
       />

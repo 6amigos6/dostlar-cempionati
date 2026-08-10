@@ -72,7 +72,7 @@ Bu, real Firebase backend-i olan tam işlək sistemdir (məlumatlar Realtime Dat
 - Qrup mərhələsi bitdikdə playoff avtomatik formalaşır; hər raund nəticələrə görə avtomatik irəliləyir
 - Avtomatik xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) və nəticələrin redaktə/sıfırlanması
 - Turnir bitdikdə avtomatik **arxivləşmə** (ad, tarix, komandalar, qruplar, oyunlar, nəticələr, xal cədvəli, final, çempion, statistikalar)
-- Mobil-first kubok dizaynı: mərkəzdə böyük 🏆, sol/sağ bracket, qrup kartları (mobil ekranda bracket horizontal scroll ilə)
+- Sadə, səliqəli mobil-first dizayn: mərhələ yolu, təmiz qarşılaşma kartları və qrup kartları
 - Admin panel sadədir: yalnız **Komandalar / Çempionat / Tarixçə**
 
 Oyunçu sistemi, canlı matç statusları (Canlı / Planlaşdırılıb), şərh və stadion/tarix sahələri bu versiyada bilərəkdən **tamamilə çıxarılıb**.

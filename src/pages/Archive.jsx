@@ -35,7 +35,7 @@ export default function Archive() {
 
   return (
     <div>
-      <div className="section-title"><h2>🏆 Hall of Fame</h2></div>
+      <div className="section-title"><h2>Hall of Fame</h2></div>
       {archiveList.length === 0
         ? <EmptyState emoji="🗄️" title="Hələ bitmiş turnir yoxdur" sub="Turnir başa çatdıqda avtomatik olaraq burada saxlanılacaq." />
         : archiveList.map((t) => {
@@ -49,7 +49,7 @@ export default function Archive() {
                   </div>
                   {champInfo && (
                     <div style={{ textAlign: 'right' }}>
-                      <span>🏆</span>
+                      
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, marginTop: 2 }}>
                         <TeamLogo team={champInfo} size={20} />{champInfo.name}
                       </div>

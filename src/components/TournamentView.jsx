@@ -1,52 +1,35 @@
 import React, { useMemo } from 'react'
-import { TeamLogo, MatchCard } from '../components.jsx'
+import { TeamLogo } from '../components.jsx'
 import {
-  computeStandings, winnerOf, matchPlayed, roundNameForSize,
-  largestPowerOfTwoLeq, buildKnockoutFromGroups,
+  computeStandings, winnerOf, matchPlayed, roundNameForSize, largestPowerOfTwoLeq,
 } from '../lib/logic.js'
 
-function TeamRow({ team, score, win }) {
-  return (
-    <div className={`tv-team-row ${win ? 'win' : ''}`}>
-      <TeamLogo team={team} size={22} />
-      <span className="tv-team-name">{team?.name || 'TBD'}</span>
-      <span className="tv-score">{score != null ? score : ''}</span>
-    </div>
-  )
-}
-
-function WingMatch({ m, teamInfo }) {
+function StageMatch({ m, teamInfo, nextLabel }) {
   const played = matchPlayed(m)
+  const winner = played ? winnerOf(m) : null
+  const a = teamInfo(m.teamA)
+  const b = teamInfo(m.teamB)
   return (
-    <div className={`tv-match ${played ? 'played' : ''}`}>
-      <TeamRow team={teamInfo(m.teamA)} score={played ? m.scoreA : null} win={played && winnerOf(m) === m.teamA} />
-      <TeamRow team={teamInfo(m.teamB)} score={played ? m.scoreB : null} win={played && winnerOf(m) === m.teamB} />
-    </div>
-  )
-}
-
-function SingleCard({ teamId, teamInfo, advance }) {
-  const team = teamInfo(teamId)
-  return (
-    <div className={`tv-match tv-single ${advance ? 'advance' : ''}`}>
-      <div className="tv-team-row">
-        <TeamLogo team={team} size={22} />
-        <span className="tv-team-name">{team?.name || 'TBD'}</span>
-        {advance && <span className="tv-adv">↗</span>}
+    <div className={`mm-card ${played ? 'played' : ''}`}>
+      <div className={`mm-team ${winner === m.teamA ? 'win' : ''}`}>
+        <TeamLogo team={a} size={34} />
+        <span className="mm-name">{a?.name || 'TBD'}</span>
+        <span className="mm-score">{played ? m.scoreA : ''}</span>
+        {winner === m.teamA && <span className="mm-tick">✓</span>}
       </div>
-    </div>
-  )
-}
-
-function WingCol({ col, teamInfo }) {
-  return (
-    <div className="tv-wing-col">
-      <div className="tv-round-name">{col.name}</div>
-      {col.slots.map((slot, i) => (
-        slot.type === 'match'
-          ? <WingMatch key={i} m={slot.match} teamInfo={teamInfo} />
-          : <SingleCard key={i} teamId={slot.teamId} teamInfo={teamInfo} advance={slot.advance} />
-      ))}
+      <div className="mm-vs">{played ? '—' : 'VS'}</div>
+      <div className={`mm-team ${winner === m.teamB ? 'win' : ''}`}>
+        <TeamLogo team={b} size={34} />
+        <span className="mm-name">{b?.name || 'TBD'}</span>
+        <span className="mm-score">{played ? m.scoreB : ''}</span>
+        {winner === m.teamB && <span className="mm-tick">✓</span>}
+      </div>
+      {played && m.penA != null && m.penB != null && (
+        <div className="mm-pen">Penaltilər: {m.penA} — {m.penB}</div>
+      )}
+      {played && nextLabel && (
+        <div className="mm-next">{winner === m.teamA ? a?.name : b?.name} → {nextLabel}</div>
+      )}
     </div>
   )
 }
@@ -54,18 +37,8 @@ function WingCol({ col, teamInfo }) {
 export default function TournamentView({ tournament, teams }) {
   const t = tournament
   const teamInfo = (id) => teams?.[id] || t.teamsInfo?.[id] || null
-  const teamName = (id) => teamInfo(id)?.name || 'TBD'
   const matches = Object.values(t.matches || {})
   const groups = t.groups || null
-
-  const koRounds = useMemo(() => {
-    const map = {}
-    matches.filter((m) => !m.group).forEach((m) => { (map[m.round] = map[m.round] || []).push(m) })
-    return Object.entries(map).sort((a, b) => b[1].length - a[1].length)
-  }, [t])
-
-  const finalRound = koRounds.length ? koRounds[koRounds.length - 1] : null
-  const finalMatch = finalRound?.[1]?.length === 1 ? finalRound[1][0] : null
 
   const groupTables = useMemo(() => {
     if (!groups) return null
@@ -76,76 +49,21 @@ export default function TournamentView({ tournament, teams }) {
     return out
   }, [t])
 
-  // Qrup mərhələsi zamanı: cari cədvələ görə playoff "proqnozu" — tam vizual bracket
-  const projected = useMemo(() => {
-    if (!groups || !groupTables) return null
-    const qf = buildKnockoutFromGroups({ ...t, stage: 'knockout' })
-    if (qf.length < 1) return null
-    const rankPos = (id) => {
-      for (const rows of Object.values(groupTables)) {
-        const i = rows.findIndex((r) => r.teamId === id)
-        if (i >= 0) return i + 1
-      }
-      return 99
-    }
-    const better = (a, b) => (rankPos(a) <= rankPos(b) ? a : b)
-    const pair = (ids) => {
-      const ms = []
-      for (let i = 0; i < ids.length; i += 2) {
-        ms.push({ teamA: ids[i], teamB: ids[i + 1], round: roundNameForSize(ids.length), scoreA: null, scoreB: null })
-      }
-      return ms
-    }
-    const qfWinners = qf.map((m) => better(m.teamA, m.teamB))
-    const sf = pair(qfWinners)
-    const sfWinners = sf.map((m) => better(m.teamA, m.teamB))
-    const fin = pair(sfWinners)
-    return { qf, sf, fin }
-  }, [groups, groupTables, t])
+  const koStages = useMemo(() => {
+    const map = {}
+    matches.filter((m) => !m.group).forEach((m) => { (map[m.round] = map[m.round] || []).push(m) })
+    return Object.entries(map)
+      .map(([name, ms]) => ({ name, matches: ms }))
+      .sort((a, b) => b.matches.length - a.matches.length) // 1/4 → 1/2 → Final
+  }, [t])
 
-  const isGroupStage = t.format === 'groups' && t.stage === 'groups' && !!projected
-
-  // Ümumi qanad sütunları: qrup mərhələsi → proqnoz, əks halda real playoff bracket
-  const wings = useMemo(() => {
-    if (isGroupStage && projected) {
-      const half = Math.ceil(projected.qf.length / 2)
-      const sfHalf = Math.ceil(projected.sf.length / 2)
-      const qfName = roundNameForSize(projected.qf.length * 2)
-      const sfName = roundNameForSize(projected.sf.length * 2)
-      const left = [
-        { name: qfName, slots: projected.qf.slice(0, half).map((m) => ({ type: 'match', match: m })) },
-        ...(projected.sf.length ? [{ name: sfName, slots: projected.sf.slice(0, sfHalf).map((m) => ({ type: 'match', match: m })) }] : []),
-      ]
-      const right = [
-        { name: qfName, slots: projected.qf.slice(half).map((m) => ({ type: 'match', match: m })) },
-        ...(projected.sf.length ? [{ name: sfName, slots: projected.sf.slice(sfHalf).map((m) => ({ type: 'match', match: m })) }] : []),
-      ]
-      return { left, right }
-    }
-    const rounds = koRounds.filter(([, ms]) => ms.length >= 2)
-    const left = rounds.map(([name, ms]) => ({
-      name,
-      slots: ms.slice(0, ms.length / 2).map((m) => ({ type: 'match', match: m })),
-    }))
-    const right = rounds.map(([name, ms]) => ({
-      name,
-      slots: ms.slice(ms.length / 2).map((m) => ({ type: 'match', match: m })),
-    }))
-    if (left.length === 0 && right.length === 0) {
-      const all = (t.teamIds || []).map((teamId) => ({ type: 'team', teamId, advance: false }))
-      if (all.length === 0) return { left: [], right: [] }
-      return { left: [{ name: t.format === 'league' ? 'LİQA' : 'MƏRHƏLƏ', slots: all }], right: [] }
-    }
-    return { left, right }
-  }, [isGroupStage, projected, koRounds, t])
-
+  const groupMatches = matches.filter((m) => m.group)
   const leagueTable = (!groups && t.format === 'league') ? computeStandings(t.teamIds || [], matches, t.pointsRule) : null
+
   const stageLabel = t.stage === 'groups' ? 'Qrup mərhələsi' : t.stage === 'knockout' ? 'Playoff' : 'Liqa'
   const champion = t.champion ? teamInfo(t.champion) : null
-  const hasWings = wings.left.length > 0
-  const centerFinal = isGroupStage ? projected?.fin?.[0] : finalMatch
 
-  // Mərhələ yolu: Qrup → Playoff mərhələləri → Çempion
+  // Mərhələ yolu: Qrup → 1/4 → 1/2 → Final → Çempion
   const roadmap = useMemo(() => {
     const rounds = []
     let size = largestPowerOfTwoLeq(Math.max(2, t.teamIds?.length || 0))
@@ -157,10 +75,10 @@ export default function TournamentView({ tournament, teams }) {
   const activeStep = useMemo(() => {
     if (champion) return roadmap.length - 1
     if (t.stage === 'groups') return 0
-    const cur = koRounds.find(([, ms]) => ms.some((m) => !matchPlayed(m)))
-    const i = cur ? roadmap.indexOf(cur[0]) : -1
+    const cur = koStages.find((s) => s.matches.some((m) => !matchPlayed(m)))
+    const i = cur ? roadmap.indexOf(cur.name) : -1
     return i >= 0 ? i : Math.max(0, roadmap.length - 2)
-  }, [champion, t, koRounds, roadmap])
+  }, [champion, t, koStages, roadmap])
 
   return (
     <div className="tournament-view">
@@ -174,7 +92,7 @@ export default function TournamentView({ tournament, teams }) {
         {roadmap.map((r, i) => (
           <div className="roadmap-item" key={r}>
             <span className={`roadmap-pill ${i === activeStep ? 'active' : ''} ${i < activeStep ? 'done' : ''}`}>
-              {i === roadmap.length - 1 ? '🏆 ' : ''}{r}
+              {r}
             </span>
             {i < roadmap.length - 1 && <span className="roadmap-arrow">›</span>}
           </div>
@@ -183,81 +101,85 @@ export default function TournamentView({ tournament, teams }) {
 
       {champion && (
         <div className="champion-banner">
-          <span className="champion-cup">🏆</span>
+          <TeamLogo team={champion} size={64} />
           <div className="champion-text">
             <div className="champion-label">ÇEMPİON</div>
             <div className="champion-name">{champion.name}</div>
           </div>
-          <TeamLogo team={champion} size={44} />
         </div>
       )}
 
-      <div className="bracket-scroll">
-        <div className="tournament-bracket">
-          <div className="tv-wing tv-left">
-            {hasWings ? wings.left.map((w) => <WingCol key={w.name} col={w} teamInfo={teamInfo} />) : (
-              <div className="tv-placeholder">Komandalar<br />gözlənilir</div>
-            )}
-          </div>
-
-          <div className="tv-center">
-            <div className="tv-cup">🏆</div>
-            <div className="tv-cup-label">{champion ? 'ÇEMPİON' : stageLabel}</div>
-            {champion && <div className="tv-champion">{champion.name}</div>}
-            {centerFinal && (
-              <div className="tv-final">
-                <span className="tv-final-team">{teamName(centerFinal.teamA)}</span>
-                <b>{matchPlayed(centerFinal) ? `${centerFinal.scoreA} : ${centerFinal.scoreB}` : 'vs'}</b>
-                <span className="tv-final-team">{teamName(centerFinal.teamB)}</span>
+      <div className="tv-stages">
+        {groupTables && (
+          <div className="tv-stage">
+            <div className="tv-stage-title">Qrup mərhələsi</div>
+            <div className="tv-groups">
+              {Object.entries(groupTables).map(([letter, rows]) => (
+                <div className="tv-group-card" key={letter}>
+                  <div className="tv-group-title">GROUP {letter}</div>
+                  {rows.map((r, i) => (
+                    <div className="tv-group-row" key={r.teamId}>
+                      <span className="tv-pos">{i + 1}</span>
+                      <TeamLogo team={teamInfo(r.teamId)} size={24} />
+                      <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
+                      <span className="tv-pts">{r.played > 0 ? `${r.pts} xal` : '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {groupMatches.length > 0 && (
+              <div className="tv-stage-matches">
+                {groupMatches.map((m, i) => (
+                  <StageMatch key={i} m={m} teamInfo={teamInfo} nextLabel={null} />
+                ))}
               </div>
             )}
-          </div>
-
-          <div className="tv-wing tv-right">
-            {hasWings ? wings.right.map((w) => <WingCol key={w.name} col={w} teamInfo={teamInfo} />) : null}
-          </div>
-        </div>
-      </div>
-
-      {isGroupStage && <div className="tv-note">Playoff proqnozu — qrup nəticələrinə görə avtomatik yenilənir</div>}
-
-      <div className="tv-groups">
-        {groupTables && Object.entries(groupTables).map(([letter, rows]) => (
-          <div className="tv-group-card" key={letter}>
-            <div className="tv-group-title">GROUP {letter}</div>
-            {rows.map((r, i) => (
-              <div className="tv-group-row" key={r.teamId}>
-                <span className="tv-pos">{i + 1}</span>
-                <TeamLogo team={teamInfo(r.teamId)} size={24} />
-                <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
-                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun` : '—'}</span>
-                <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-        {leagueTable && (
-          <div className="tv-group-card tv-league-card">
-            <div className="tv-group-title">ÜMUMİ CƏDVƏL</div>
-            {leagueTable.map((r, i) => (
-              <div className="tv-group-row" key={r.teamId}>
-                <span className="tv-pos">{i + 1}</span>
-                <TeamLogo team={teamInfo(r.teamId)} size={24} />
-                <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
-                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun` : '—'}</span>
-                <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
-              </div>
-            ))}
           </div>
         )}
-        {!groupTables && !leagueTable && t.format === 'knockout' && (
-          <div className="tv-group-card tv-league-card">
-            <div className="tv-group-title">QARŞILAŞMALAR</div>
-            <div className="stack-8">
-              {koRounds.flatMap(([, ms]) => ms).map((m, i) => <MatchCard key={i} match={m} teams={teams} />)}
+
+        {leagueTable && (
+          <div className="tv-stage">
+            <div className="tv-stage-title">Liqa</div>
+            <div className="tv-groups">
+              <div className="tv-group-card tv-league-card">
+                <div className="tv-group-title">ÜMUMİ CƏDVƏL</div>
+                {leagueTable.map((r, i) => (
+                  <div className="tv-group-row" key={r.teamId}>
+                    <span className="tv-pos">{i + 1}</span>
+                    <TeamLogo team={teamInfo(r.teamId)} size={24} />
+                    <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
+                    <span className="tv-pts">{r.played > 0 ? `${r.pts} xal` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="tv-stage-matches">
+              {matches.map((m, i) => <StageMatch key={i} m={m} teamInfo={teamInfo} nextLabel={null} />)}
             </div>
           </div>
         )}
+
+        {koStages.map((stage) => (
+          <div className="tv-stage" key={stage.name}>
+            <div className="tv-stage-title">
+              {stage.name}
+              {stage.matches.length > 1 && (
+                <span className="tv-stage-next">→ {roundNameForSize(stage.matches.length)}</span>
+              )}
+            </div>
+            <div className="tv-stage-matches">
+              {stage.matches.map((m, i) => (
+                <StageMatch
+                  key={i}
+                  m={m}
+                  teamInfo={teamInfo}
+                  nextLabel={stage.matches.length === 1 ? 'Çempion' : roundNameForSize(stage.matches.length)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

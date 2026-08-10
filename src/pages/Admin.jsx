@@ -10,11 +10,12 @@ const UNLOCK_KEY = 'admin_unlocked'
 
 export default function Admin() {
   const [tab, setTab] = useState('Komandalar')
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(UNLOCK_KEY) === '1')
+  // Sessiya localStorage-da saxlanılır: brauzer bağlanıb açılsa belə admin avtomatik daxil olur
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem(UNLOCK_KEY) === '1')
   const [confirmState, setConfirmState] = useState(null)
 
-  const unlock = () => { sessionStorage.setItem(UNLOCK_KEY, '1'); setUnlocked(true) }
-  const lock = () => { sessionStorage.removeItem(UNLOCK_KEY); setUnlocked(false) }
+  const unlock = () => { localStorage.setItem(UNLOCK_KEY, '1'); setUnlocked(true) }
+  const lock = () => { localStorage.removeItem(UNLOCK_KEY); setUnlocked(false) }
   const ask = (title, message, onConfirm) => setConfirmState({ title, message, onConfirm })
 
   if (!unlocked) return <AdminLogin onUnlock={unlock} />
@@ -176,13 +177,13 @@ function ChampionshipTab({ ask }) {
     if (selected.length < 2) { alert('Ən azı 2 komanda seçin'); return }
     await startChampionship(selected, format)
     setCreateOpen(false)
-    notify('Çempionat başladı! 🏆')
+    notify('Çempionat başladı!')
   }
 
   if (!activeTournament) {
     return (
       <div>
-        <EmptyState emoji="🏆" title="Aktiv çempionat yoxdur" sub="Komandaları seçin — sistem avtomatik püşkatma edib qarşılaşmaları yaradacaq." />
+        <EmptyState emoji="⚽" title="Aktiv çempionat yoxdur" sub="Komandaları seçin — sistem avtomatik püşkatma edib qarşılaşmaları yaradacaq." />
         <button className="btn btn-primary btn-block" onClick={() => { setSelected(teamList.map((t) => t.id)); setCreateOpen(true) }}>+ Çempionat yarat</button>
         {createOpen && (
           <Modal title="Çempionat yarat" onClose={() => setCreateOpen(false)}>
@@ -354,7 +355,7 @@ function HistoryTab({ ask }) {
               <div className="card flex-between" key={t.id}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 12.5 }}>{t.name} · {t.season}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>🏆 {t.teamsInfo?.[t.champion]?.name || teams[t.champion]?.name || '—'}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{t.teamsInfo?.[t.champion]?.name || teams[t.champion]?.name || '—'}</div>
                 </div>
                 <button className="btn btn-danger btn-sm" onClick={() => ask('Turniri sil', `"${t.name}" — bu məlumatı silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarılmır.`, () => deleteArchivedTournament(t.id))}>Sil</button>
               </div>

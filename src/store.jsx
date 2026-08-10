@@ -117,8 +117,29 @@ export function AppProvider({ children }) {
     })
   }, [tournaments])
 
-  // Yeni çempionat yaradır, püşkatmanı çəkir və aktiv edir
+  // Yeni çempionat yaradır, püşkatmanı çəkir və aktiv edir.
+  // Aktiv köhnə turnir varsa bütün məlumatı ilə avtomatik ARXİV-ə köçürülür.
   const startChampionship = useCallback(async (teamIds, format) => {
+    const prevId = activeTournamentId
+    const prev = prevId ? tournaments[prevId] : null
+    if (prev && (prev.teamIds?.length || Object.keys(prev.matches || {}).length)) {
+      const now = Date.now()
+      const prevMatches = Object.values(prev.matches || {})
+      const groupStandings = {}
+      Object.entries(prev.groups || {}).forEach(([letter, ids]) => {
+        groupStandings[letter] = computeStandings(ids, prevMatches.filter((m) => m.group === letter), prev.pointsRule)
+      })
+      const teamsInfo = {}
+      prev.teamIds.forEach((id) => {
+        const tm = teams[id]
+        if (tm) teamsInfo[id] = { name: tm.name, logoUrl: tm.logoUrl || null }
+      })
+      const entry = { ...prev, finishedAt: prev.finishedAt || now, archivedAt: now, groupStandings, teamsInfo }
+      await Promise.all([
+        set(ref(db, `archive/${prevId}`), entry),
+        remove(ref(db, `tournaments/${prevId}`)),
+      ])
+    }
     const id = uid('tour')
     const groups = format === 'groups' ? splitIntoGroups(teamIds) : null
     const matches = format === 'groups'
@@ -145,7 +166,7 @@ export function AppProvider({ children }) {
       set(ref(db, 'settings/activeTournamentId'), id),
     ])
     return id
-  }, [])
+  }, [activeTournamentId, tournaments, teams, computeStandings])
 
   const addMatchesToTournament = useCallback(async (tournamentId, matches) => {
     const obj = {}
@@ -179,7 +200,7 @@ export function AppProvider({ children }) {
       remove(ref(db, `tournaments/${tournamentId}`)),
       set(ref(db, 'settings/activeTournamentId'), null),
     ])
-    notify(`🏆 ${teams[champion]?.name || 'Komanda'} çempion oldu!`)
+    notify(`${teams[champion]?.name || 'Komanda'} çempion oldu!`)
   }, [teams, notify])
 
   // Playoff mərhələsi bitdikdə növbəti raundu avtomatik qurur

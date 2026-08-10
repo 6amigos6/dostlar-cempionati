@@ -8,7 +8,7 @@ import Archive from './pages/Archive.jsx'
 import Admin from './pages/Admin.jsx'
 
 const NAV = [
-  { to: '/', label: 'Çempionat', emoji: '🏆' },
+  { to: '/', label: 'Çempionat', emoji: '⚽' },
   { to: '/teams', label: 'Komandalar', emoji: '🛡️' },
   { to: '/archive', label: 'Tarixçə', emoji: '🗄️' },
 ]
@@ -29,7 +29,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <Link to="/" className="brand">
-          <span className="brand-mark">🏆</span>
+          <span className="brand-mark">⚽</span>
           Çempionlar Liqası
         </Link>
         <nav className="desktop-nav">

@@ -15,41 +15,6 @@ export function TeamLogo({ team, size = 46 }) {
   )
 }
 
-export function MatchCard({ match, teams }) {
-  const teamA = teams?.[match.teamA]
-  const teamB = teams?.[match.teamB]
-  const hasScore = match.scoreA != null && match.scoreB != null
-  return (
-    <div className="card match-card">
-      <div className="match-meta">
-        <span className="match-round-tag">{match.round}</span>
-      </div>
-      <div className="match-teams">
-        <div className="match-team">
-          <TeamLogo team={teamA} size={38} />
-          <span className="match-team-name">{teamA ? teamA.name : 'TBD'}</span>
-        </div>
-        <div className="score-board">
-          {hasScore ? (
-            <>
-              <span>{match.scoreA}</span><span className="dash">:</span><span>{match.scoreB}</span>
-            </>
-          ) : (
-            <span style={{ fontSize: 15, color: 'var(--ink-muted)' }}>vs</span>
-          )}
-        </div>
-        <div className="match-team">
-          <TeamLogo team={teamB} size={38} />
-          <span className="match-team-name">{teamB ? teamB.name : 'TBD'}</span>
-        </div>
-      </div>
-      {match.penA != null && match.penB != null && (
-        <div className="match-pen">Penaltilər: {match.penA} - {match.penB}</div>
-      )}
-    </div>
-  )
-}
-
 export function TeamCard({ team }) {
   const played = team.played ?? null
   const hasStats = played != null && played > 0
