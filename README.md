@@ -58,7 +58,7 @@ Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdak�
 2. **Komandalar** bölməsindən komanda əlavə et — ad + loqo URL, və ya **Şəkil yüklə** düyməsi ilə qalereyadan şəkil seç (Cloudinary-yə avtomatik yüklənir).
 3. **Çempionat** bölməsindən **Çempionat yarat** — komandaları seç və **Qarşılaşma modu** (qruplar + playoff) formatını seç; sistem avtomatik püşkatma edib A, B, C... qruplarına bölür və oyunları yaradır.
 4. Qarşılaşmaların nəticələrini daxil et — xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) avtomatik yenilənir. Nəticələri istənilən vaxt **redaktə** və ya **sıfırla** (tək oyun və ya bütün nəticələr).
-5. Qrup mərhələsi bitdikdə playoff avtomatik formalaşır; hər raund bitdikdə növbəti mərhələ qurulur.
+5. Qrup mərhələsi bitdikdə playoff avtomatik formalaşır və komanda sayına uyğun mərhələdən başlayır (8 komanda → 1/4 Final, 16 komanda → 1/8 Final); hər raund bitdikdə növbəti mərhələ qurulur.
 6. Final bitdikdə çempion müəyyənləşir, turnir tam məlumatla **Tarixçə / Arxiv** bölməsinə avtomatik köçürülür.
 7. User paneldə `Tarixçə`dən əvvəlki turnirlərə baxmaq, Admin paneldə isə silmək mümkündür (təsdiq pəncərəsi ilə).
 

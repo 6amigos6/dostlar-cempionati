@@ -26,8 +26,8 @@ export function shuffle(arr) {
 
 const ROUND_NAMES = {
   2: 'Final',
-  4: 'Yarımfinal',
-  8: 'Rübfinal',
+  4: '1/2 Final',
+  8: '1/4 Final',
   16: '1/8 Final',
   32: '1/16 Final',
 }
@@ -36,12 +36,13 @@ export function roundNameForSize(teamCount) {
   return ROUND_NAMES[teamCount] || `${teamCount} komandalıq mərhələ`
 }
 
-// 2-dən böyük ən kiçik 2-nin qüvvəti (playoff ölçüsü üçün)
-export function nextPowerOfTwo(n) {
-  let p = 2
-  while (p < n) p *= 2
+// n-dən böyük olmayan ən böyük 2-nin qüvvəti (playoff ölçüsü üçün)
+export function largestPowerOfTwoLeq(n) {
+  let p = 1
+  while (p * 2 <= n) p *= 2
   return p
 }
+
 
 // Komandaları təsadüfi olaraq ~4-lük qruplara bölür (A, B, C ...)
 export function splitIntoGroups(teamIds) {
@@ -69,26 +70,23 @@ export function generateGroupMatches(groups) {
   return matches
 }
 
-// Qrup mərhələsi bitdikdən sonra playoff mərhələsini qurur:
-// hər qrupdan ilk 2 + (lazım olarsa) ən yaxşı 3-cülər, 2-nin qüvvətinə tamamlanır
+// Qrup mərhələsi bitdikdən sonra playoff mərhələsini qurur.
+// Komandalar qrup cədvəlinə görə düzülür; playoff komanda sayına uyğun mərhələdən başlayır
+// (8 komanda → 1/4 Final, 16 komanda → 1/8 Final və s.). Cütlər qrup-rəqib şəklində düzülür.
 export function buildKnockoutFromGroups(tournament) {
   const groups = tournament.groups || {}
   const matches = Object.values(tournament.matches || {})
-  const advancing = []
-  const thirds = []
-  Object.entries(groups).forEach(([letter, ids]) => {
-    const gMatches = matches.filter((m) => m.group === letter)
-    const table = computeStandings(ids, gMatches, tournament.pointsRule)
-    table.forEach((row, i) => {
-      if (i < 2) advancing.push(row)
-      else if (i === 2) thirds.push(row)
-    })
+  const perGroup = Object.entries(groups).map(([letter, ids], gi) => {
+    const table = computeStandings(ids, matches.filter((m) => m.group === letter), tournament.pointsRule)
+    const ordered = table.map((r) => r.teamId)
+    return gi % 2 === 1 ? [...ordered].reverse() : ordered
   })
-  const list = advancing.map((r) => r.teamId)
-  const target = nextPowerOfTwo(Math.max(2, list.length))
-  const sortedThirds = thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
-  while (list.length < target && sortedThirds.length > 0) list.push(sortedThirds.shift().teamId)
-  return generatePlayoffRound(list, { seeded: false })
+  const total = perGroup.reduce((sum, g) => sum + g.length, 0)
+  const target = largestPowerOfTwoLeq(Math.max(2, total))
+  const maxLen = Math.max(0, ...perGroup.map((g) => g.length))
+  const ordered = []
+  for (let i = 0; i < maxLen; i++) perGroup.forEach((g) => { if (g[i]) ordered.push(g[i]) })
+  return generatePlayoffRound(ordered.slice(0, target), { seeded: true })
 }
 
 // N komanda üçün ilk playoff mərhələsinin qarşılaşmalarını yaradır (seed və ya təsadüfi)

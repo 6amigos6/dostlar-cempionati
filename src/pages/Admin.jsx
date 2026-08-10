@@ -196,18 +196,30 @@ function ChampionshipTab({ ask }) {
                 </select>
               </div>
               <div className="field">
-                <label>Komandalar ({selected.length} seçildi)</label>
-                {teamList.length === 0 && <div className="muted" style={{ fontSize: 12 }}>Əvvəlcə "Komandalar" bölməsindən komanda yaradın.</div>}
-                <div className="stack-8" style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
-                  {teamList.map((t) => (
-                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                      <input type="checkbox" checked={selected.includes(t.id)} onChange={() => setSelected((s) => (s.includes(t.id) ? s.filter((x) => x !== t.id) : [...s, t.id]))} />
-                      <TeamLogo team={t} size={22} />{t.name}
-                    </label>
-                  ))}
+                <div className="flex-between" style={{ marginBottom: 8 }}>
+                  <label style={{ margin: 0 }}>Komandalar</label>
+                  <span className="chip">{selected.length} komanda seçildi</span>
+                </div>
+                {teamList.length === 0 && <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>Əvvəlcə "Komandalar" bölməsindən komanda yaradın.</div>}
+                <div className="team-pick-grid">
+                  {teamList.map((t) => {
+                    const sel = selected.includes(t.id)
+                    return (
+                      <button
+                        type="button"
+                        key={t.id}
+                        className={`team-pick ${sel ? 'selected' : ''}`}
+                        onClick={() => setSelected((s) => (sel ? s.filter((x) => x !== t.id) : [...s, t.id]))}
+                      >
+                        <TeamLogo team={t} size={30} />
+                        <span className="team-pick-name">{t.name}</span>
+                        <span className="team-pick-check">{sel ? '✓' : ''}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-              <button className="btn btn-primary btn-block">Çempionatı başlat</button>
+              <button className="btn btn-primary btn-block" disabled={selected.length < 2}>Davam et</button>
             </form>
           </Modal>
         )}
@@ -315,9 +327,12 @@ function ResultForm({ tournamentId, match, onClose }) {
           </div>
         </div>
         {needPen && (
-          <div className="field-row">
-            <div className="field"><label>Penalti — {teams[match.teamA]?.name}</label><input type="number" min="0" value={penA} onChange={(e) => setPenA(e.target.value)} /></div>
-            <div className="field"><label>Penalti — {teams[match.teamB]?.name}</label><input type="number" min="0" value={penB} onChange={(e) => setPenB(e.target.value)} /></div>
+          <div className="field">
+            <label style={{ textAlign: 'center' }}>Əlavə vaxt / Penaltilər</label>
+            <div className="field-row">
+              <div className="field"><label>{teams[match.teamA]?.name}</label><input type="number" min="0" value={penA} onChange={(e) => setPenA(e.target.value)} /></div>
+              <div className="field"><label>{teams[match.teamB]?.name}</label><input type="number" min="0" value={penB} onChange={(e) => setPenB(e.target.value)} /></div>
+            </div>
           </div>
         )}
         <button className="btn btn-primary btn-block">Nəticəni yadda saxla</button>

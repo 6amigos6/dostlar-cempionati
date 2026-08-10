@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react'
 import { TeamLogo, MatchCard } from '../components.jsx'
-import { computeStandings, winnerOf, matchPlayed } from '../lib/logic.js'
+import {
+  computeStandings, winnerOf, matchPlayed, roundNameForSize,
+  largestPowerOfTwoLeq, buildKnockoutFromGroups,
+} from '../lib/logic.js'
 
 function TeamRow({ team, score, win }) {
   return (
@@ -73,40 +76,52 @@ export default function TournamentView({ tournament, teams }) {
     return out
   }, [t])
 
-  // Qrup mərhələsi: komandalar canlı cədvələ görə mərhələ-mərhələ kuboka doğru göstərilir
-  const groupWings = useMemo(() => {
+  // Qrup mərhələsi zamanı: cari cədvələ görə playoff "proqnozu" — tam vizual bracket
+  const projected = useMemo(() => {
     if (!groups || !groupTables) return null
-    const letters = Object.keys(groups).sort()
-    const half = Math.ceil(letters.length / 2)
-    const build = (ls) => {
-      const cols = []
-      ls.forEach((letter) => {
-        cols.push({
-          name: `${letter} QRUPU`,
-          slots: (groupTables[letter] || []).map((r) => ({ type: 'team', teamId: r.teamId, advance: false })),
-        })
-      })
-      if (ls.length > 0) {
-        const next = []
-        const final = []
-        ls.forEach((letter) => {
-          const rows = groupTables[letter] || []
-          rows.slice(0, 2).forEach((r) => next.push({ type: 'team', teamId: r.teamId, advance: true }))
-          if (rows[0]) final.push({ type: 'team', teamId: rows[0].teamId, advance: true })
-        })
-        cols.push({ name: 'NÖVBƏTİ MƏRHƏLƏ', slots: next })
-        cols.push({ name: 'FİNAL', slots: final })
+    const qf = buildKnockoutFromGroups({ ...t, stage: 'knockout' })
+    if (qf.length < 1) return null
+    const rankPos = (id) => {
+      for (const rows of Object.values(groupTables)) {
+        const i = rows.findIndex((r) => r.teamId === id)
+        if (i >= 0) return i + 1
       }
-      return cols
+      return 99
     }
-    return { left: build(letters.slice(0, half)), right: build(letters.slice(half)) }
-  }, [groups, groupTables])
+    const better = (a, b) => (rankPos(a) <= rankPos(b) ? a : b)
+    const pair = (ids) => {
+      const ms = []
+      for (let i = 0; i < ids.length; i += 2) {
+        ms.push({ teamA: ids[i], teamB: ids[i + 1], round: roundNameForSize(ids.length), scoreA: null, scoreB: null })
+      }
+      return ms
+    }
+    const qfWinners = qf.map((m) => better(m.teamA, m.teamB))
+    const sf = pair(qfWinners)
+    const sfWinners = sf.map((m) => better(m.teamA, m.teamB))
+    const fin = pair(sfWinners)
+    return { qf, sf, fin }
+  }, [groups, groupTables, t])
 
-  const isGroupStage = t.format === 'groups' && t.stage === 'groups' && !!groupWings
+  const isGroupStage = t.format === 'groups' && t.stage === 'groups' && !!projected
 
-  // Ümumi qanad sütunları: qrup mərhələsi → vizual proqnoz, əks halda real playoff bracket
+  // Ümumi qanad sütunları: qrup mərhələsi → proqnoz, əks halda real playoff bracket
   const wings = useMemo(() => {
-    if (isGroupStage) return groupWings
+    if (isGroupStage && projected) {
+      const half = Math.ceil(projected.qf.length / 2)
+      const sfHalf = Math.ceil(projected.sf.length / 2)
+      const qfName = roundNameForSize(projected.qf.length * 2)
+      const sfName = roundNameForSize(projected.sf.length * 2)
+      const left = [
+        { name: qfName, slots: projected.qf.slice(0, half).map((m) => ({ type: 'match', match: m })) },
+        ...(projected.sf.length ? [{ name: sfName, slots: projected.sf.slice(0, sfHalf).map((m) => ({ type: 'match', match: m })) }] : []),
+      ]
+      const right = [
+        { name: qfName, slots: projected.qf.slice(half).map((m) => ({ type: 'match', match: m })) },
+        ...(projected.sf.length ? [{ name: sfName, slots: projected.sf.slice(sfHalf).map((m) => ({ type: 'match', match: m })) }] : []),
+      ]
+      return { left, right }
+    }
     const rounds = koRounds.filter(([, ms]) => ms.length >= 2)
     const left = rounds.map(([name, ms]) => ({
       name,
@@ -122,12 +137,30 @@ export default function TournamentView({ tournament, teams }) {
       return { left: [{ name: t.format === 'league' ? 'LİQA' : 'MƏRHƏLƏ', slots: all }], right: [] }
     }
     return { left, right }
-  }, [isGroupStage, groupWings, koRounds, t])
+  }, [isGroupStage, projected, koRounds, t])
 
   const leagueTable = (!groups && t.format === 'league') ? computeStandings(t.teamIds || [], matches, t.pointsRule) : null
   const stageLabel = t.stage === 'groups' ? 'Qrup mərhələsi' : t.stage === 'knockout' ? 'Playoff' : 'Liqa'
   const champion = t.champion ? teamInfo(t.champion) : null
   const hasWings = wings.left.length > 0
+  const centerFinal = isGroupStage ? projected?.fin?.[0] : finalMatch
+
+  // Mərhələ yolu: Qrup → Playoff mərhələləri → Çempion
+  const roadmap = useMemo(() => {
+    const rounds = []
+    let size = largestPowerOfTwoLeq(Math.max(2, t.teamIds?.length || 0))
+    while (size >= 2) { rounds.push(roundNameForSize(size)); size /= 2 }
+    const list = t.format === 'groups' ? ['Qrup mərhələsi', ...rounds] : [...rounds]
+    list.push('Çempion')
+    return list
+  }, [t])
+  const activeStep = useMemo(() => {
+    if (champion) return roadmap.length - 1
+    if (t.stage === 'groups') return 0
+    const cur = koRounds.find(([, ms]) => ms.some((m) => !matchPlayed(m)))
+    const i = cur ? roadmap.indexOf(cur[0]) : -1
+    return i >= 0 ? i : Math.max(0, roadmap.length - 2)
+  }, [champion, t, koRounds, roadmap])
 
   return (
     <div className="tournament-view">
@@ -135,6 +168,17 @@ export default function TournamentView({ tournament, teams }) {
         <span className="tournament-eyebrow">TOURNAMENT SCHEDULE</span>
         <span className="tournament-name">{t.name}</span>
         <span className="tournament-season">Mövsüm {t.season} · {stageLabel}</span>
+      </div>
+
+      <div className="tournament-roadmap">
+        {roadmap.map((r, i) => (
+          <div className="roadmap-item" key={r}>
+            <span className={`roadmap-pill ${i === activeStep ? 'active' : ''} ${i < activeStep ? 'done' : ''}`}>
+              {i === roadmap.length - 1 ? '🏆 ' : ''}{r}
+            </span>
+            {i < roadmap.length - 1 && <span className="roadmap-arrow">›</span>}
+          </div>
+        ))}
       </div>
 
       {champion && (
@@ -160,11 +204,11 @@ export default function TournamentView({ tournament, teams }) {
             <div className="tv-cup">🏆</div>
             <div className="tv-cup-label">{champion ? 'ÇEMPİON' : stageLabel}</div>
             {champion && <div className="tv-champion">{champion.name}</div>}
-            {finalMatch && (
+            {centerFinal && (
               <div className="tv-final">
-                <span className="tv-final-team">{teamName(finalMatch.teamA)}</span>
-                <b>{matchPlayed(finalMatch) ? `${finalMatch.scoreA} : ${finalMatch.scoreB}` : 'vs'}</b>
-                <span className="tv-final-team">{teamName(finalMatch.teamB)}</span>
+                <span className="tv-final-team">{teamName(centerFinal.teamA)}</span>
+                <b>{matchPlayed(centerFinal) ? `${centerFinal.scoreA} : ${centerFinal.scoreB}` : 'vs'}</b>
+                <span className="tv-final-team">{teamName(centerFinal.teamB)}</span>
               </div>
             )}
           </div>
@@ -175,35 +219,33 @@ export default function TournamentView({ tournament, teams }) {
         </div>
       </div>
 
+      {isGroupStage && <div className="tv-note">Playoff proqnozu — qrup nəticələrinə görə avtomatik yenilənir</div>}
+
       <div className="tv-groups">
         {groupTables && Object.entries(groupTables).map(([letter, rows]) => (
           <div className="tv-group-card" key={letter}>
-            <div className="tv-group-title">{letter} QRUPU</div>
-            {rows.map((r, i) => {
-              const advance = t.stage === 'groups' && i < 2
-              return (
-                <div className={`tv-group-row ${advance ? 'advance' : ''}`} key={r.teamId}>
-                  <span className="tv-pos">{i + 1}</span>
-                  <TeamLogo team={teamInfo(r.teamId)} size={24} />
-                  <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
-                  {advance && <span className="tv-adv">↗</span>}
-                  <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
-                  <span className="tv-rec">{r.played > 0 ? `${r.played} oyun · ${r.won}Q ${r.drawn}H ${r.lost}M` : '—'}</span>
-                </div>
-              )
-            })}
+            <div className="tv-group-title">GROUP {letter}</div>
+            {rows.map((r, i) => (
+              <div className="tv-group-row" key={r.teamId}>
+                <span className="tv-pos">{i + 1}</span>
+                <TeamLogo team={teamInfo(r.teamId)} size={24} />
+                <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
+                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun` : '—'}</span>
+                <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
+              </div>
+            ))}
           </div>
         ))}
         {leagueTable && (
           <div className="tv-group-card tv-league-card">
             <div className="tv-group-title">ÜMUMİ CƏDVƏL</div>
             {leagueTable.map((r, i) => (
-              <div className={`tv-group-row ${i === 0 ? 'advance' : ''}`} key={r.teamId}>
+              <div className="tv-group-row" key={r.teamId}>
                 <span className="tv-pos">{i + 1}</span>
                 <TeamLogo team={teamInfo(r.teamId)} size={24} />
                 <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
+                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun` : '—'}</span>
                 <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
-                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun · ${r.won}Q ${r.drawn}H ${r.lost}M` : '—'}</span>
               </div>
             ))}
           </div>
