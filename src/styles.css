@@ -212,6 +212,10 @@ table.standings tr:nth-child(-n+2) td:first-child { color: var(--turf); font-wei
   font-family: var(--font-mono); font-size: 11px; color: var(--gold);
   letter-spacing: 1.4px; text-transform: uppercase;
 }
+.tournament-eyebrow {
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-dim);
+  letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2px;
+}
 
 /* ---------- Çempion banneri ---------- */
 .champion-banner {
@@ -333,3 +337,21 @@ table.standings tr:nth-child(-n+2) td:first-child { color: var(--turf); font-wei
 .tv-pts { font-family: var(--font-display); font-size: 14px; color: var(--gold); min-width: 22px; text-align: right; }
 .tv-rec { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-dim); white-space: nowrap; }
 .tv-league-card { grid-column: 1 / -1; }
+
+/* ---------- Mobil: bracket sıxılmadan, kubok mərkəzdə ---------- */
+@media (max-width: 640px) {
+  .tournament-bracket { min-width: 620px; gap: 8px; padding: 6px 2px 10px; }
+  .tv-wing { gap: 8px; }
+  .tv-wing-col { min-width: 130px; gap: 10px; }
+  .tv-round-name { font-size: 9px; letter-spacing: .9px; }
+  .tv-match { padding: 4px 6px; }
+  .tv-team-row { font-size: 11px; padding: 4px 1px; gap: 5px; }
+  .tv-team-row .team-logo { width: 19px; height: 19px; font-size: 9px; }
+  .tv-center { width: 150px; padding: 10px 6px; }
+  .tv-cup { font-size: 56px; }
+  .tv-cup-label { font-size: 10px; letter-spacing: 2px; }
+  .tv-champion { font-size: 14px; }
+  .tv-final { padding: 6px 8px; font-size: 10.5px; }
+  .tv-group-row { font-size: 12px; padding: 6px 4px; }
+  .tv-rec { font-size: 9px; }
+}

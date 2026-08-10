@@ -10,7 +10,9 @@ export default function Teams() {
   if (id) {
     const team = teams[id]
     if (!team) return <EmptyState emoji="🛡️" title="Komanda tapılmadı" />
-    const gd = (team.gf || 0) - (team.ga || 0)
+    const hasStats = (team.played ?? 0) > 0
+    const gd = (team.gf != null && team.ga != null) ? team.gf - team.ga : null
+    const pts = team.pts != null ? team.pts : null
     const group = Object.entries(activeTournament?.groups || {}).find(([, ids]) => ids.includes(id))
     return (
       <div>
@@ -20,15 +22,15 @@ export default function Teams() {
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 19 }}>{team.name}</div>
             <div className="muted" style={{ fontSize: 12 }}>
-              {group && activeTournament ? `${group[0]} qrupu · ` : ''}{team.played || 0} oyun · {team.won || 0}Q {team.drawn || 0}H {team.lost || 0}M
+              {group && activeTournament ? `${group[0]} qrupu · ` : ''}{hasStats ? `${team.played} oyun · ${team.won}Q ${team.drawn}H ${team.lost}M` : '—'}
             </div>
           </div>
         </div>
         <div className="grid-2" style={{ marginTop: 12 }}>
-          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Vurulan qollar</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{team.gf || 0}</div></div>
-          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Buraxılan qollar</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{team.ga || 0}</div></div>
-          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Top fərqi</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{gd > 0 ? `+${gd}` : gd}</div></div>
-          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Xal</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--gold)' }}>{(team.won || 0) * 3 + (team.drawn || 0)}</div></div>
+          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Vurulan qollar</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{team.gf != null ? team.gf : '—'}</div></div>
+          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Buraxılan qollar</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{team.ga != null ? team.ga : '—'}</div></div>
+          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Top fərqi</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}>{gd != null ? (gd > 0 ? `+${gd}` : gd) : '—'}</div></div>
+          <div className="card"><div className="muted" style={{ fontSize: 11 }}>Xal</div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--gold)' }}>{pts != null ? pts : '—'}</div></div>
         </div>
       </div>
     )

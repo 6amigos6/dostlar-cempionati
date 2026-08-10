@@ -51,18 +51,21 @@ export function MatchCard({ match, teams }) {
 }
 
 export function TeamCard({ team }) {
-  const gd = (team.gf || 0) - (team.ga || 0)
+  const played = team.played ?? null
+  const hasStats = played != null && played > 0
+  const gd = (team.gf != null && team.ga != null) ? team.gf - team.ga : null
+  const pts = team.pts != null ? team.pts : null
   return (
     <Link to={`/teams/${team.id}`} className="card team-card">
       <div className="team-card-top">
         <TeamLogo team={team} />
         <div>
           <div className="team-name">{team.name}</div>
-          <div className="team-record">{team.won || 0}Q {team.drawn || 0}H {team.lost || 0}M</div>
+          <div className="team-record">{hasStats ? `${team.won}Q ${team.drawn}H ${team.lost}M` : '—'}</div>
         </div>
       </div>
-      <div className="team-stat-row"><span>Qol fərqi</span><span>{gd > 0 ? `+${gd}` : gd}</span></div>
-      <div className="team-stat-row"><span>Xal</span><span className="team-pts">{team.pts ?? (team.won || 0) * 3 + (team.drawn || 0)}</span></div>
+      <div className="team-stat-row"><span>Qol fərqi</span><span>{gd != null ? (gd > 0 ? `+${gd}` : gd) : '—'}</span></div>
+      <div className="team-stat-row"><span>Xal</span><span className="team-pts">{pts != null ? pts : '—'}</span></div>
     </Link>
   )
 }

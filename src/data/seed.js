@@ -10,10 +10,7 @@ export async function seedDemoData() {
   TEAM_NAMES.forEach((name, i) => {
     const id = uid('team')
     teamIds.push(id)
-    teamsObj[id] = {
-      name, logoUrl: '', played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0,
-      createdAt: Date.now(),
-    }
+    teamsObj[id] = { name, logoUrl: '', createdAt: Date.now() }
   })
 
   const groups = splitIntoGroups(teamIds)

@@ -11,9 +11,11 @@ const UNLOCK_KEY = 'admin_unlocked'
 export default function Admin() {
   const [tab, setTab] = useState('Komandalar')
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(UNLOCK_KEY) === '1')
+  const [confirmState, setConfirmState] = useState(null)
 
   const unlock = () => { sessionStorage.setItem(UNLOCK_KEY, '1'); setUnlocked(true) }
   const lock = () => { sessionStorage.removeItem(UNLOCK_KEY); setUnlocked(false) }
+  const ask = (title, message, onConfirm) => setConfirmState({ title, message, onConfirm })
 
   if (!unlocked) return <AdminLogin onUnlock={unlock} />
 
@@ -23,9 +25,36 @@ export default function Admin() {
       <div className="tabs">
         {TABS.map((t) => <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</button>)}
       </div>
-      {tab === 'Komandalar' && <TeamsTab />}
-      {tab === 'Çempionat' && <ChampionshipTab />}
-      {tab === 'Tarixçə' && <HistoryTab />}
+      {tab === 'Komandalar' && <TeamsTab ask={ask} />}
+      {tab === 'Çempionat' && <ChampionshipTab ask={ask} />}
+      {tab === 'Tarixçə' && <HistoryTab ask={ask} />}
+
+      {confirmState && (
+        <ConfirmDialog
+          title={confirmState.title}
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm?.(); setConfirmState(null) }}
+          onClose={() => setConfirmState(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmDialog({ title, message, onConfirm, onClose }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-sheet" style={{ maxWidth: 360 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ textAlign: 'center', padding: '14px 6px 6px' }}>
+          <div style={{ fontSize: 30, marginBottom: 10 }}>⚠️</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, marginBottom: 8 }}>{title}</div>
+          <div className="muted" style={{ fontSize: 12.5, marginBottom: 20, lineHeight: 1.5 }}>{message}</div>
+          <div className="field-row">
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Ləğv et</button>
+            <button className="btn btn-danger" style={{ flex: 1 }} onClick={onConfirm}>Təsdiq et</button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -60,7 +89,7 @@ function AdminLogin({ onUnlock }) {
 }
 
 // ================= KOMANDALAR =================
-function TeamsTab() {
+function TeamsTab({ ask }) {
   const { teamList, deleteTeam } = useApp()
   const [editing, setEditing] = useState(null) // null=closed, {}=new, {...}=edit
   return (
@@ -76,7 +105,7 @@ function TeamsTab() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditing(t)}>Redaktə</button>
-              <button className="btn btn-danger btn-sm" onClick={() => { if (confirm('Komandanı silmək istəyirsiniz?')) deleteTeam(t.id) }}>Sil</button>
+              <button className="btn btn-danger btn-sm" onClick={() => ask('Komanda sil', `"${t.name}" — bu məlumatı silmək istədiyinizə əminsiniz?`, () => deleteTeam(t.id))}>Sil</button>
             </div>
           </div>
         ))}
@@ -135,8 +164,8 @@ function TeamForm({ team, onClose }) {
 }
 
 // ================= ÇEMPİONAT =================
-function ChampionshipTab() {
-  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, recordResult, notify } = useApp()
+function ChampionshipTab({ ask }) {
+  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, deleteTournament, recordResult, notify } = useApp()
   const [createOpen, setCreateOpen] = useState(false)
   const [format, setFormat] = useState('groups')
   const [selected, setSelected] = useState([])
@@ -195,9 +224,10 @@ function ChampionshipTab() {
     <div>
       <div className="flex-between" style={{ marginBottom: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{activeTournament.name} <span className="chip" style={{ marginLeft: 6 }}>{stageLabel}</span></div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-outline btn-sm" onClick={() => { if (confirm('Püşkatmanı yeniləmək istəyirsiniz? Hazırkı oyunlar silinəcək.')) generateDraw(activeTournament.id) }}>🎲 Püşkat</button>
-          <button className="btn btn-gold btn-sm" onClick={() => { if (confirm('Turniri bitirib tarixçəyə köçürmək istəyirsiniz?')) finishTournament(activeTournament.id) }}>🏁 Turniri bitir</button>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline btn-sm" onClick={() => ask('Püşkatmanı yenilə', 'Püşkatmanı yeniləmək istəyirsiniz? Hazırkı oyunlar silinəcək.', () => generateDraw(activeTournament.id))}>🎲 Püşkat</button>
+          <button className="btn btn-gold btn-sm" onClick={() => ask('Turniri bitir', 'Turniri bitirib tarixçəyə köçürmək istəyirsiniz?', () => finishTournament(activeTournament.id))}>🏁 Turniri bitir</button>
+          <button className="btn btn-danger btn-sm" onClick={() => ask('Aktiv turniri sil', 'Bu məlumatı silmək istədiyinizə əminsiniz? Turnir və bütün oyunları silinəcək.', () => deleteTournament(activeTournament.id))}>🗑 Turniri sil</button>
         </div>
       </div>
 
@@ -214,7 +244,7 @@ function ChampionshipTab() {
                       <span className="mono muted">{i + 1}</span>
                       <TeamLogo team={teams[r.teamId]} size={20} />{teams[r.teamId]?.name || '—'}
                     </span>
-                    <span className="mono" style={{ color: 'var(--gold)', fontWeight: 700 }}>{r.pts} xal</span>
+                    <span className="mono" style={{ color: 'var(--gold)', fontWeight: 700 }}>{r.played > 0 ? `${r.pts} xal` : '—'}</span>
                   </div>
                 ))}
               </div>
@@ -293,8 +323,8 @@ function ResultForm({ tournamentId, match, onClose }) {
 }
 
 // ================= TARİXÇƏ =================
-function HistoryTab() {
-  const { archiveList, teams, deleteArchivedTournament, notify } = useApp()
+function HistoryTab({ ask }) {
+  const { archiveList, teams, deleteArchivedTournament } = useApp()
   return (
     <div>
       {archiveList.length === 0
@@ -307,12 +337,7 @@ function HistoryTab() {
                   <div style={{ fontWeight: 700, fontSize: 12.5 }}>{t.name} · {t.season}</div>
                   <div className="muted" style={{ fontSize: 11 }}>🏆 {t.teamsInfo?.[t.champion]?.name || teams[t.champion]?.name || '—'}</div>
                 </div>
-                <button className="btn btn-danger btn-sm" onClick={async () => {
-                  if (confirm(`"${t.name}" turnirini silmək istəyirsiniz? Bu əməliyyat geri qaytarılmır.`)) {
-                    await deleteArchivedTournament(t.id)
-                    notify('Turnir tarixçədən silindi')
-                  }
-                }}>Sil</button>
+                <button className="btn btn-danger btn-sm" onClick={() => ask('Turniri sil', `"${t.name}" — bu məlumatı silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarılmır.`, () => deleteArchivedTournament(t.id))}>Sil</button>
               </div>
             ))}
           </div>

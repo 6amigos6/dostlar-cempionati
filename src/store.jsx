@@ -52,12 +52,48 @@ export function AppProvider({ children }) {
   // ---------- Teams ----------
   const addTeam = useCallback((data) => {
     const id = uid('team')
-    return set(ref(db, `teams/${id}`), {
-      ...data, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0, createdAt: Date.now(),
-    })
+    // Hesablanan sahələr default olaraq yazılmır — real nəticə daxil ediləndə hesablanır
+    return set(ref(db, `teams/${id}`), { ...data, createdAt: Date.now() })
   }, [])
   const updateTeam = useCallback((id, data) => update(ref(db, `teams/${id}`), data), [])
   const deleteTeam = useCallback((id) => remove(ref(db, `teams/${id}`)), [])
+
+  // Komandanın statistikasını bütün oyunlardan yenidən hesablayır.
+  // Oyun yoxdursa sahələr null (—) qalır, 0 ilə doldurulmur.
+  const recomputeTeamStats = useCallback(async (teamId, override = {}, excludeId = null) => {
+    const matches = []
+    Object.entries({ ...tournaments, ...archive }).forEach(([id, t]) => {
+      if (!t || !t.matches || id === excludeId) return
+      const ms = override.tournamentId === id ? override.matches : Object.values(t.matches)
+      ms.forEach((m) => {
+        if (matchPlayed(m) && (m.teamA === teamId || m.teamB === teamId)) matches.push(m)
+      })
+    })
+    if (matches.length === 0) {
+      await update(ref(db, `teams/${teamId}`), {
+        played: null, won: null, drawn: null, lost: null, gf: null, ga: null, pts: null,
+      })
+      return
+    }
+    const stats = { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 }
+    matches.forEach((m) => {
+      const isA = m.teamA === teamId
+      const gf = isA ? m.scoreA : m.scoreB
+      const ga = isA ? m.scoreB : m.scoreA
+      stats.played += 1
+      stats.gf += gf
+      stats.ga += ga
+      const win = isA ? m.scoreA > m.scoreB : m.scoreB > m.scoreA
+      const loss = isA ? m.scoreA < m.scoreB : m.scoreB < m.scoreA
+      if (win) stats.won += 1
+      else if (loss) stats.lost += 1
+      else stats.drawn += 1
+    })
+    await update(ref(db, `teams/${teamId}`), {
+      played: stats.played, won: stats.won, drawn: stats.drawn, lost: stats.lost,
+      gf: stats.gf, ga: stats.ga, pts: stats.won * 3 + stats.drawn,
+    })
+  }, [tournaments, archive])
 
   // ---------- Çempionat ----------
   const generateDraw = useCallback(async (tournamentId) => {
@@ -171,30 +207,16 @@ export function AppProvider({ children }) {
     const t = tournaments[tournamentId]
     const m = t?.matches?.[matchId]
     if (!t || !m) return
-    // Komanda statistikasını yenilə
-    const teamA = teams[m.teamA]
-    const teamB = teams[m.teamB]
-    if (teamA) {
-      const won = result.scoreA > result.scoreB ? 1 : 0
-      const lost = result.scoreA < result.scoreB ? 1 : 0
-      const drawn = result.scoreA === result.scoreB ? 1 : 0
-      await update(ref(db, `teams/${m.teamA}`), {
-        played: (teamA.played || 0) + 1, won: (teamA.won || 0) + won, lost: (teamA.lost || 0) + lost,
-        drawn: (teamA.drawn || 0) + drawn, gf: (teamA.gf || 0) + result.scoreA, ga: (teamA.ga || 0) + result.scoreB,
-      })
-    }
-    if (teamB) {
-      const won = result.scoreB > result.scoreA ? 1 : 0
-      const lost = result.scoreB < result.scoreA ? 1 : 0
-      const drawn = result.scoreA === result.scoreB ? 1 : 0
-      await update(ref(db, `teams/${m.teamB}`), {
-        played: (teamB.played || 0) + 1, won: (teamB.won || 0) + won, lost: (teamB.lost || 0) + lost,
-        drawn: (teamB.drawn || 0) + drawn, gf: (teamB.gf || 0) + result.scoreB, ga: (teamB.ga || 0) + result.scoreA,
-      })
-    }
 
     const patched = { ...t.matches }
     patched[matchId] = { ...m, ...result }
+    const patchedList = Object.values(patched)
+
+    // Komanda statistikasını bütün oyunlardan yenidən hesabla (0 default qalmır)
+    await Promise.all([
+      recomputeTeamStats(m.teamA, { tournamentId, matches: patchedList }),
+      recomputeTeamStats(m.teamB, { tournamentId, matches: patchedList }),
+    ])
 
     // Qrup mərhələsi bitdikdə playoff avtomatik qurulur
     if (t.format === 'groups' && t.stage === 'groups') {
@@ -222,7 +244,7 @@ export function AppProvider({ children }) {
       }
     }
     notify('Nəticə yadda saxlanıldı')
-  }, [tournaments, teams, addMatchesToTournament, maybeAdvanceKnockout, finalizeTournament, notify])
+  }, [tournaments, recomputeTeamStats, addMatchesToTournament, maybeAdvanceKnockout, finalizeTournament, notify])
 
   // "Turniri bitir" — çempion müəyyənləşibsə turniri arxivə köçürür
   const finishTournament = useCallback(async (tournamentId) => {
@@ -235,14 +257,32 @@ export function AppProvider({ children }) {
     notify('Çempion hələ müəyyənləşməyib — final oyununun nəticəsini daxil edin.')
   }, [tournaments, finalizeTournament, notify])
 
+  // Aktiv turniri tamamilə silir (statistika yenidən hesablanır)
+  const deleteTournament = useCallback(async (tournamentId) => {
+    const t = tournaments[tournamentId]
+    const ids = t?.teamIds || []
+    await Promise.all([
+      remove(ref(db, `tournaments/${tournamentId}`)),
+      set(ref(db, 'settings/activeTournamentId'), null),
+    ])
+    ids.forEach((teamId) => recomputeTeamStats(teamId, {}, tournamentId))
+    notify('Turnir silindi')
+  }, [tournaments, recomputeTeamStats, notify])
+
   // ---------- Arxiv ----------
-  const deleteArchivedTournament = useCallback((id) => remove(ref(db, `archive/${id}`)), [])
+  const deleteArchivedTournament = useCallback(async (id) => {
+    const t = archive[id]
+    const ids = t?.teamIds || []
+    await remove(ref(db, `archive/${id}`))
+    ids.forEach((teamId) => recomputeTeamStats(teamId, {}, id))
+    notify('Turnir tarixçədən silindi')
+  }, [archive, recomputeTeamStats, notify])
 
   const value = {
     teams, teamList, archive, archiveList,
     activeTournament, activeTournamentId, loading, notify, toast,
     addTeam, updateTeam, deleteTeam,
-    generateDraw, startChampionship, recordResult, finishTournament,
+    generateDraw, startChampionship, recordResult, finishTournament, deleteTournament,
     deleteArchivedTournament, computeStandings,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

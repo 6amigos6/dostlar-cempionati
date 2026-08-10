@@ -63,6 +63,7 @@ export default function TournamentView({ tournament, teams }) {
   return (
     <div className="tournament-view">
       <div className="tournament-head">
+        <span className="tournament-eyebrow">TOURNAMENT SCHEDULE</span>
         <span className="tournament-name">{t.name}</span>
         <span className="tournament-season">Mövsüm {t.season} · {stageLabel}</span>
       </div>
@@ -127,8 +128,8 @@ export default function TournamentView({ tournament, teams }) {
                   <TeamLogo team={teamInfo(r.teamId)} size={24} />
                   <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
                   {advance && <span className="tv-adv">↗</span>}
-                  <span className="tv-pts">{r.pts}</span>
-                  <span className="tv-rec">{r.played} oyun · {r.won}Q {r.drawn}H {r.lost}M</span>
+                  <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
+                  <span className="tv-rec">{r.played > 0 ? `${r.played} oyun · ${r.won}Q ${r.drawn}H ${r.lost}M` : '—'}</span>
                 </div>
               )
             })}
@@ -142,8 +143,8 @@ export default function TournamentView({ tournament, teams }) {
                 <span className="tv-pos">{i + 1}</span>
                 <TeamLogo team={teamInfo(r.teamId)} size={24} />
                 <span className="tv-team-name">{teamInfo(r.teamId)?.name || '—'}</span>
-                <span className="tv-pts">{r.pts}</span>
-                <span className="tv-rec">{r.played} oyun · {r.won}Q {r.drawn}H {r.lost}M</span>
+                <span className="tv-pts">{r.played > 0 ? r.pts : '—'}</span>
+                <span className="tv-rec">{r.played > 0 ? `${r.played} oyun · ${r.won}Q ${r.drawn}H ${r.lost}M` : '—'}</span>
               </div>
             ))}
           </div>
