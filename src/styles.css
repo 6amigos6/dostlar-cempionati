@@ -262,9 +262,15 @@ button { font-family: inherit; }
 .mm-team .team-logo { width: 34px; height: 34px; font-size: 13px; border-radius: 10px; }
 .mm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 13.5px; }
 .mm-score { font-family: var(--font-display); font-size: 18px; min-width: 22px; text-align: right; color: var(--ink-muted); }
+.mm-score.empty { color: var(--border-strong); font-size: 14px; }
 .mm-team.win .mm-name, .mm-team.win .mm-score { color: var(--gold); }
 .mm-team.win .mm-name { font-weight: 900; }
-.mm-status { display: flex; justify-content: center; padding-top: 8px; margin-top: 2px; border-top: 1px dashed var(--border); }
+.mm-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 8px; margin-top: 2px; border-top: 1px dashed var(--border);
+}
+.mm-foot .mm-pen { margin-top: 0; text-align: left; }
+.mm-foot .chip { flex-shrink: 0; }
 .mm-vs {
   text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--ink-dim);
   letter-spacing: 2px; padding: 2px 0;
@@ -292,6 +298,13 @@ button { font-family: inherit; }
 }
 .tv-group-row + .tv-group-row { border-top: 1px dashed rgba(240,197,62,.08); }
 .tv-group-row .team-logo { width: 26px; height: 26px; font-size: 11px; border-radius: 8px; }
+.tv-group-head {
+  display: flex; align-items: center; gap: 8px; padding: 2px 6px 6px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.2px;
+  color: var(--ink-dim); text-transform: uppercase;
+}
+.tv-group-head .tv-team-name { padding-left: 34px; }
+.tv-team-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv-pos { width: 15px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim); text-align: center; }
 .tv-pts { font-family: var(--font-display); font-size: 13px; color: var(--gold); min-width: 46px; text-align: right; white-space: nowrap; }
 .tv-league-card { grid-column: 1 / -1; }
@@ -398,6 +411,6 @@ html[data-theme='light'] .topbar {
 html[data-theme='light'] .bottom-nav { background: rgba(255,255,255,0.94); }
 html[data-theme='light'] .modal-backdrop { background: rgba(0,0,0,.35); }
 html[data-theme='light'] .tv-group-row + .tv-group-row { border-top: 1px dashed rgba(15,20,15,.08); }
-html[data-theme='light'] .mm-status { border-top-color: rgba(15,20,15,.08); }
+html[data-theme='light'] .mm-foot { border-top-color: rgba(15,20,15,.08); }
 html[data-theme='light'] .plan-stage + .plan-stage { border-top-color: rgba(15,20,15,.12); }
 html[data-theme='light'] .result-step { background: rgba(31,163,92,.04); }

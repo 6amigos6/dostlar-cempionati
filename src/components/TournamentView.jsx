@@ -14,20 +14,20 @@ function StageMatch({ m, teamInfo, nextLabel }) {
       <div className={`mm-team ${winner === m.teamA ? 'win' : ''}`}>
         <TeamLogo team={a} size={34} />
         <span className="mm-name">{a?.name || 'TBD'}</span>
-        <span className="mm-score">{played ? m.scoreA : ''}</span>
+        <span className={`mm-score ${played ? '' : 'empty'}`}>{played ? m.scoreA : '–'}</span>
       </div>
       <div className="mm-vs">{played ? '—' : 'VS'}</div>
       <div className={`mm-team ${winner === m.teamB ? 'win' : ''}`}>
         <TeamLogo team={b} size={34} />
         <span className="mm-name">{b?.name || 'TBD'}</span>
-        <span className="mm-score">{played ? m.scoreB : ''}</span>
+        <span className={`mm-score ${played ? '' : 'empty'}`}>{played ? m.scoreB : '–'}</span>
       </div>
-      <div className="mm-status">
+      <div className="mm-foot">
+        {played && m.penA != null && m.penB != null && (
+          <span className="mm-pen">Penaltilər: {m.penA} — {m.penB}</span>
+        )}
         <span className={`chip ${played ? 'done' : 'pending'}`}>{played ? 'BİTDİ' : 'NÖVBƏDƏ'}</span>
       </div>
-      {played && m.penA != null && m.penB != null && (
-        <div className="mm-pen">Penaltilər: {m.penA} — {m.penB}</div>
-      )}
       {played && nextLabel && (
         <div className="mm-next">{winner === m.teamA ? a?.name : b?.name} → {nextLabel}</div>
       )}
@@ -89,7 +89,7 @@ export default function TournamentView({ tournament, teams }) {
   }, [champion, t, koStages, stageList])
 
   // Accordion: bir anda yalnız bir mərhələ açıqdır; mərhələ dəyişəndə avtomatik yenisinə keçir
-  const [openStage, setOpenStage] = useState(null)
+  const [openStage, setOpenStage] = useState(activeStageKey)
   useEffect(() => {
     if (activeStageKey) setOpenStage(activeStageKey)
   }, [activeStageKey])
@@ -164,6 +164,7 @@ export default function TournamentView({ tournament, teams }) {
                         {Object.entries(groupTables).map(([letter, rows]) => (
                           <div className="tv-group-card" key={letter}>
                             <div className="tv-group-title">GROUP {letter}</div>
+                            <div className="tv-group-head"><span className="tv-pos">#</span><span className="tv-team-name">KOMANDA</span><span className="tv-pts">XAL</span></div>
                             {rows.map((r, i) => (
                               <div className="tv-group-row" key={r.teamId}>
                                 <span className="tv-pos">{i + 1}</span>
@@ -189,6 +190,7 @@ export default function TournamentView({ tournament, teams }) {
                       <div className="tv-groups">
                         <div className="tv-group-card tv-league-card">
                           <div className="tv-group-title">ÜMUMİ CƏDVƏL</div>
+                          <div className="tv-group-head"><span className="tv-pos">#</span><span className="tv-team-name">KOMANDA</span><span className="tv-pts">XAL</span></div>
                           {leagueTable.map((r, i) => (
                             <div className="tv-group-row" key={r.teamId}>
                               <span className="tv-pos">{i + 1}</span>
