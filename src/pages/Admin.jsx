@@ -165,7 +165,7 @@ function TeamForm({ team, onClose }) {
 
 // ================= ÇEMPİONAT =================
 function ChampionshipTab({ ask }) {
-  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, deleteTournament, recordResult, notify } = useApp()
+  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, deleteTournament, recordResult, resetMatch, resetAllResults, notify } = useApp()
   const [createOpen, setCreateOpen] = useState(false)
   const [format, setFormat] = useState('groups')
   const [selected, setSelected] = useState([])
@@ -226,6 +226,7 @@ function ChampionshipTab({ ask }) {
         <div style={{ fontWeight: 700, fontSize: 14 }}>{activeTournament.name} <span className="chip" style={{ marginLeft: 6 }}>{stageLabel}</span></div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button className="btn btn-outline btn-sm" onClick={() => ask('Püşkatmanı yenilə', 'Püşkatmanı yeniləmək istəyirsiniz? Hazırkı oyunlar silinəcək.', () => generateDraw(activeTournament.id))}>🎲 Püşkat</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => ask('Bütün nəticələri sıfırla', 'Bütün nəticələri silmək istədiyinizə əminsiniz? Qrup formatında playoff silinib qrup mərhələsinə qayıdılacaq.', () => resetAllResults(activeTournament.id))}>⟲ Nəticələri sıfırla</button>
           <button className="btn btn-gold btn-sm" onClick={() => ask('Turniri bitir', 'Turniri bitirib tarixçəyə köçürmək istəyirsiniz?', () => finishTournament(activeTournament.id))}>🏁 Turniri bitir</button>
           <button className="btn btn-danger btn-sm" onClick={() => ask('Aktiv turniri sil', 'Bu məlumatı silmək istədiyinizə əminsiniz? Turnir və bütün oyunları silinəcək.', () => deleteTournament(activeTournament.id))}>🗑 Turniri sil</button>
         </div>
@@ -261,9 +262,12 @@ function ChampionshipTab({ ask }) {
               const played = m.scoreA != null && m.scoreB != null
               return (
                 <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
-                  <div className="flex-between" style={{ marginBottom: 6 }}>
+                  <div className="flex-between" style={{ marginBottom: 6, gap: 8 }}>
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{teams[m.teamA]?.name || 'TBD'} vs {teams[m.teamB]?.name || 'TBD'}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setResultFor(m)}>{played ? 'Nəticəni düzəlt' : 'Nəticə daxil et'}</button>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setResultFor(m)}>{played ? 'Nəticəni düzəlt' : 'Nəticə daxil et'}</button>
+                      {played && <button className="btn btn-danger btn-sm" onClick={() => ask('Nəticəni sıfırla', 'Bu nəticəni silmək istədiyinizə əminsiniz?', () => resetMatch(activeTournament.id, m.id))}>Sıfırla</button>}
+                    </div>
                   </div>
                   {played && <div className="mono" style={{ fontSize: 14 }}>{m.scoreA} : {m.scoreB}{m.penA != null ? ` (pen. ${m.penA}-${m.penB})` : ''}</div>}
                 </div>

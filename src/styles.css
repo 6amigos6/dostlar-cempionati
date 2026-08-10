@@ -355,3 +355,13 @@ table.standings tr:nth-child(-n+2) td:first-child { color: var(--turf); font-wei
   .tv-group-row { font-size: 12px; padding: 6px 4px; }
   .tv-rec { font-size: 9px; }
 }
+
+/* ---------- Bracket: tək komanda kartları ---------- */
+.tv-single { display: flex; align-items: center; padding: 4px 8px; }
+.tv-single .tv-team-row { flex: 1; padding: 6px 2px; }
+.tv-single .tv-adv { margin-left: auto; color: var(--gold); }
+.tv-single.advance {
+  border-color: var(--border-strong);
+  background: linear-gradient(135deg, rgba(240,197,62,.14), var(--surface) 70%);
+}
+.tv-wing-col { justify-content: space-evenly; }

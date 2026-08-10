@@ -22,11 +22,38 @@ function WingMatch({ m, teamInfo }) {
   )
 }
 
+function SingleCard({ teamId, teamInfo, advance }) {
+  const team = teamInfo(teamId)
+  return (
+    <div className={`tv-match tv-single ${advance ? 'advance' : ''}`}>
+      <div className="tv-team-row">
+        <TeamLogo team={team} size={22} />
+        <span className="tv-team-name">{team?.name || 'TBD'}</span>
+        {advance && <span className="tv-adv">↗</span>}
+      </div>
+    </div>
+  )
+}
+
+function WingCol({ col, teamInfo }) {
+  return (
+    <div className="tv-wing-col">
+      <div className="tv-round-name">{col.name}</div>
+      {col.slots.map((slot, i) => (
+        slot.type === 'match'
+          ? <WingMatch key={i} m={slot.match} teamInfo={teamInfo} />
+          : <SingleCard key={i} teamId={slot.teamId} teamInfo={teamInfo} advance={slot.advance} />
+      ))}
+    </div>
+  )
+}
+
 export default function TournamentView({ tournament, teams }) {
   const t = tournament
   const teamInfo = (id) => teams?.[id] || t.teamsInfo?.[id] || null
   const teamName = (id) => teamInfo(id)?.name || 'TBD'
   const matches = Object.values(t.matches || {})
+  const groups = t.groups || null
 
   const koRounds = useMemo(() => {
     const map = {}
@@ -37,15 +64,6 @@ export default function TournamentView({ tournament, teams }) {
   const finalRound = koRounds.length ? koRounds[koRounds.length - 1] : null
   const finalMatch = finalRound?.[1]?.length === 1 ? finalRound[1][0] : null
 
-  const wings = useMemo(() => {
-    const rounds = koRounds.filter(([, ms]) => ms.length >= 2)
-    return {
-      left: rounds.map(([name, ms]) => ({ name, matches: ms.slice(0, ms.length / 2) })),
-      right: rounds.map(([name, ms]) => ({ name, matches: ms.slice(ms.length / 2) })),
-    }
-  }, [koRounds])
-
-  const groups = t.groups || null
   const groupTables = useMemo(() => {
     if (!groups) return null
     const out = {}
@@ -54,6 +72,57 @@ export default function TournamentView({ tournament, teams }) {
     })
     return out
   }, [t])
+
+  // Qrup mərhələsi: komandalar canlı cədvələ görə mərhələ-mərhələ kuboka doğru göstərilir
+  const groupWings = useMemo(() => {
+    if (!groups || !groupTables) return null
+    const letters = Object.keys(groups).sort()
+    const half = Math.ceil(letters.length / 2)
+    const build = (ls) => {
+      const cols = []
+      ls.forEach((letter) => {
+        cols.push({
+          name: `${letter} QRUPU`,
+          slots: (groupTables[letter] || []).map((r) => ({ type: 'team', teamId: r.teamId, advance: false })),
+        })
+      })
+      if (ls.length > 0) {
+        const next = []
+        const final = []
+        ls.forEach((letter) => {
+          const rows = groupTables[letter] || []
+          rows.slice(0, 2).forEach((r) => next.push({ type: 'team', teamId: r.teamId, advance: true }))
+          if (rows[0]) final.push({ type: 'team', teamId: rows[0].teamId, advance: true })
+        })
+        cols.push({ name: 'NÖVBƏTİ MƏRHƏLƏ', slots: next })
+        cols.push({ name: 'FİNAL', slots: final })
+      }
+      return cols
+    }
+    return { left: build(letters.slice(0, half)), right: build(letters.slice(half)) }
+  }, [groups, groupTables])
+
+  const isGroupStage = t.format === 'groups' && t.stage === 'groups' && !!groupWings
+
+  // Ümumi qanad sütunları: qrup mərhələsi → vizual proqnoz, əks halda real playoff bracket
+  const wings = useMemo(() => {
+    if (isGroupStage) return groupWings
+    const rounds = koRounds.filter(([, ms]) => ms.length >= 2)
+    const left = rounds.map(([name, ms]) => ({
+      name,
+      slots: ms.slice(0, ms.length / 2).map((m) => ({ type: 'match', match: m })),
+    }))
+    const right = rounds.map(([name, ms]) => ({
+      name,
+      slots: ms.slice(ms.length / 2).map((m) => ({ type: 'match', match: m })),
+    }))
+    if (left.length === 0 && right.length === 0) {
+      const all = (t.teamIds || []).map((teamId) => ({ type: 'team', teamId, advance: false }))
+      if (all.length === 0) return { left: [], right: [] }
+      return { left: [{ name: t.format === 'league' ? 'LİQA' : 'MƏRHƏLƏ', slots: all }], right: [] }
+    }
+    return { left, right }
+  }, [isGroupStage, groupWings, koRounds, t])
 
   const leagueTable = (!groups && t.format === 'league') ? computeStandings(t.teamIds || [], matches, t.pointsRule) : null
   const stageLabel = t.stage === 'groups' ? 'Qrup mərhələsi' : t.stage === 'knockout' ? 'Playoff' : 'Liqa'
@@ -82,13 +151,8 @@ export default function TournamentView({ tournament, teams }) {
       <div className="bracket-scroll">
         <div className="tournament-bracket">
           <div className="tv-wing tv-left">
-            {hasWings ? wings.left.map((w) => (
-              <div className="tv-wing-col" key={w.name}>
-                <div className="tv-round-name">{w.name}</div>
-                {w.matches.map((m, i) => <WingMatch key={i} m={m} teamInfo={teamInfo} />)}
-              </div>
-            )) : (
-              <div className="tv-placeholder">Qrup mərhələsi<br />davam edir</div>
+            {hasWings ? wings.left.map((w) => <WingCol key={w.name} col={w} teamInfo={teamInfo} />) : (
+              <div className="tv-placeholder">Komandalar<br />gözlənilir</div>
             )}
           </div>
 
@@ -106,12 +170,7 @@ export default function TournamentView({ tournament, teams }) {
           </div>
 
           <div className="tv-wing tv-right">
-            {hasWings ? wings.right.map((w) => (
-              <div className="tv-wing-col" key={w.name}>
-                <div className="tv-round-name">{w.name}</div>
-                {w.matches.map((m, i) => <WingMatch key={i} m={m} teamInfo={teamInfo} />)}
-              </div>
-            )) : null}
+            {hasWings ? wings.right.map((w) => <WingCol key={w.name} col={w} teamInfo={teamInfo} />) : null}
           </div>
         </div>
       </div>

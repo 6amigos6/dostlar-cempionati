@@ -246,6 +246,50 @@ export function AppProvider({ children }) {
     notify('Nəticə yadda saxlanıldı')
   }, [tournaments, recomputeTeamStats, addMatchesToTournament, maybeAdvanceKnockout, finalizeTournament, notify])
 
+  // Tək qarşılaşmanın nəticəsini sıfırlayır (statistika yenidən hesablanır)
+  const resetMatch = useCallback(async (tournamentId, matchId) => {
+    const t = tournaments[tournamentId]
+    const m = t?.matches?.[matchId]
+    const cleared = { scoreA: null, scoreB: null, penA: null, penB: null, playedAt: null }
+    await update(ref(db, `tournaments/${tournamentId}/matches/${matchId}`), cleared)
+    if (!t || !m) return
+    const patched = { ...t.matches, [matchId]: { ...m, ...cleared } }
+    await Promise.all([
+      recomputeTeamStats(m.teamA, { tournamentId, matches: Object.values(patched) }),
+      recomputeTeamStats(m.teamB, { tournamentId, matches: Object.values(patched) }),
+    ])
+    notify('Nəticə sıfırlandı')
+  }, [tournaments, recomputeTeamStats, notify])
+
+  // Bütün nəticələri sıfırlayır; qrup formatında playoff silinib qrup mərhələsinə qayıdır
+  const resetAllResults = useCallback(async (tournamentId) => {
+    const t = tournaments[tournamentId]
+    if (!t) return
+    let finalMatches = []
+    if (t.format === 'groups' && t.stage === 'knockout') {
+      finalMatches = Object.values(t.matches || {})
+        .filter((m) => m.group)
+        .map((m) => ({ ...m, scoreA: null, scoreB: null, penA: null, penB: null, playedAt: null }))
+      const matchesObj = {}
+      finalMatches.forEach((m) => { matchesObj[uid('m')] = { ...m } })
+      await update(ref(db, `tournaments/${tournamentId}`), { stage: 'groups', matches: matchesObj, champion: null })
+    } else {
+      finalMatches = Object.values(t.matches || {})
+        .map((m) => ({ ...m, scoreA: null, scoreB: null, penA: null, penB: null, playedAt: null }))
+      const scoresReset = {}
+      Object.entries(t.matches || {}).forEach(([id, m]) => {
+        scoresReset[`${id}/scoreA`] = null
+        scoresReset[`${id}/scoreB`] = null
+        scoresReset[`${id}/penA`] = null
+        scoresReset[`${id}/penB`] = null
+        scoresReset[`${id}/playedAt`] = null
+      })
+      await update(ref(db, `tournaments/${tournamentId}/matches`), scoresReset)
+    }
+    ;(t.teamIds || []).forEach((teamId) => recomputeTeamStats(teamId, { tournamentId, matches: finalMatches }))
+    notify('Bütün nəticələr sıfırlandı')
+  }, [tournaments, recomputeTeamStats, notify])
+
   // "Turniri bitir" — çempion müəyyənləşibsə turniri arxivə köçürür
   const finishTournament = useCallback(async (tournamentId) => {
     const t = tournaments[tournamentId]
@@ -282,7 +326,7 @@ export function AppProvider({ children }) {
     teams, teamList, archive, archiveList,
     activeTournament, activeTournamentId, loading, notify, toast,
     addTeam, updateTeam, deleteTeam,
-    generateDraw, startChampionship, recordResult, finishTournament, deleteTournament,
+    generateDraw, startChampionship, recordResult, resetMatch, resetAllResults, finishTournament, deleteTournament,
     deleteArchivedTournament, computeStandings,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

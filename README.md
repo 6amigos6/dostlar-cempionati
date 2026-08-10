@@ -57,7 +57,7 @@ Console → **Realtime Database** → **Rules** bölməsinə keçib aşağıdak�
 1. `/admin`-dən daxil ol (şifrə: `gasham`).
 2. **Komandalar** bölməsindən komanda əlavə et — ad + loqo URL, və ya **Şəkil yüklə** düyməsi ilə qalereyadan şəkil seç (Cloudinary-yə avtomatik yüklənir).
 3. **Çempionat** bölməsindən **Çempionat yarat** — komandaları seç və **Qarşılaşma modu** (qruplar + playoff) formatını seç; sistem avtomatik püşkatma edib A, B, C... qruplarına bölür və oyunları yaradır.
-4. Qarşılaşmaların nəticələrini daxil et — xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) avtomatik yenilənir.
+4. Qarşılaşmaların nəticələrini daxil et — xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) avtomatik yenilənir. Nəticələri istənilən vaxt **redaktə** və ya **sıfırla** (tək oyun və ya bütün nəticələr).
 5. Qrup mərhələsi bitdikdə playoff avtomatik formalaşır; hər raund bitdikdə növbəti mərhələ qurulur.
 6. Final bitdikdə çempion müəyyənləşir, turnir tam məlumatla **Tarixçə / Arxiv** bölməsinə avtomatik köçürülür.
 7. User paneldə `Tarixçə`dən əvvəlki turnirlərə baxmaq, Admin paneldə isə silmək mümkündür (təsdiq pəncərəsi ilə).
@@ -70,7 +70,7 @@ Bu, real Firebase backend-i olan tam işlək sistemdir (məlumatlar Realtime Dat
 - Cloudinary ilə şəkil yükləmə (qalereyadan seçim → URL avtomatik doldurulur)
 - **Qarşılaşma modu**: komandalar təsadüfi qruplara bölünür (A, B, C...), qrup daxilində round-robin oyunları avtomatik yaradılır
 - Qrup mərhələsi bitdikdə playoff avtomatik formalaşır; hər raund nəticələrə görə avtomatik irəliləyir
-- Avtomatik xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0)
+- Avtomatik xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) və nəticələrin redaktə/sıfırlanması
 - Turnir bitdikdə avtomatik **arxivləşmə** (ad, tarix, komandalar, qruplar, oyunlar, nəticələr, xal cədvəli, final, çempion, statistikalar)
 - Mobil-first kubok dizaynı: mərkəzdə böyük 🏆, sol/sağ bracket, qrup kartları (mobil ekranda bracket horizontal scroll ilə)
 - Admin panel sadədir: yalnız **Komandalar / Çempionat / Tarixçə**
