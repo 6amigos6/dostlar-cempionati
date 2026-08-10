@@ -29,8 +29,19 @@ export function AppProvider({ children }) {
   const [archive, archiveLoaded] = useCollection('archive')
   const [settings, settingsLoaded] = useCollection('settings')
   const [toast, setToast] = useState(null)
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'dark' } catch { return 'dark' }
+  })
 
-  useEffect(() => { document.documentElement.setAttribute('data-theme', 'dark') }, [])
+  // Tema: localStorage-da saxlanır, brauzer yenidən açılanda qorunur
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try { localStorage.setItem('theme', theme) } catch { /* noop */ }
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#060B16' : '#F3F1EA')
+  }, [theme])
+  const toggleTheme = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), [])
+
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 2600)
@@ -345,7 +356,7 @@ export function AppProvider({ children }) {
 
   const value = {
     teams, teamList, archive, archiveList,
-    activeTournament, activeTournamentId, loading, notify, toast,
+    activeTournament, activeTournamentId, loading, notify, toast, theme, toggleTheme,
     addTeam, updateTeam, deleteTeam,
     generateDraw, startChampionship, recordResult, resetMatch, resetAllResults, finishTournament, deleteTournament,
     deleteArchivedTournament, computeStandings,

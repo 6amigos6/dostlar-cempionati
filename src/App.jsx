@@ -18,7 +18,7 @@ const MORE_LINKS = [
 ]
 
 export default function App() {
-  const { toast, loading } = useApp()
+  const { toast, loading, theme, toggleTheme } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -32,11 +32,18 @@ export default function App() {
           <span className="brand-mark">⚽</span>
           Çempionlar Liqası
         </Link>
-        <nav className="desktop-nav">
-          {[...NAV, ...MORE_LINKS].map((l) => (
-            <Link key={l.to} to={l.to} className={isActive(l.to) ? 'active' : ''}>{l.label}</Link>
-          ))}
-        </nav>
+        <div className="topbar-right">
+          <nav className="desktop-nav">
+            {[...NAV, ...MORE_LINKS].map((l) => (
+              <Link key={l.to} to={l.to} className={isActive(l.to) ? 'active' : ''}>{l.label}</Link>
+            ))}
+          </nav>
+          <div className="topbar-actions">
+            <button className="icon-btn" onClick={toggleTheme} aria-label="Tema dəyiş" title="Tema dəyiş">
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="app-main">

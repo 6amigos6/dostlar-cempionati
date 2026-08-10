@@ -43,7 +43,6 @@ export async function seedDemoData() {
 export async function wipeAllData() {
   await Promise.all([
     set(ref(db, 'teams'), null),
-    set(ref(db, 'players'), null),
     set(ref(db, 'tournaments'), null),
     set(ref(db, 'archive'), null),
     set(ref(db, 'settings'), null),

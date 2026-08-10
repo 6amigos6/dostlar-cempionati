@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { useApp } from '../store.jsx'
 import { Modal, TeamLogo, EmptyState } from '../components.jsx'
 import { uploadToCloudinary } from '../lib/upload.js'
-import { computeStandings } from '../lib/logic.js'
+import {
+  computeStandings, matchPlayed, buildKnockoutFromGroups, roundNameForSize,
+} from '../lib/logic.js'
 
-const TABS = ['Komandalar', 'Çempionat', 'Tarixçə']
+const TABS = ['Komandalar', 'Çempionat', 'Nəticələr', 'Tarixçə']
 const ADMIN_PASSWORD = 'gasham'
 const UNLOCK_KEY = 'admin_unlocked'
 
@@ -28,6 +30,7 @@ export default function Admin() {
       </div>
       {tab === 'Komandalar' && <TeamsTab ask={ask} />}
       {tab === 'Çempionat' && <ChampionshipTab ask={ask} />}
+      {tab === 'Nəticələr' && <ResultsTab ask={ask} />}
       {tab === 'Tarixçə' && <HistoryTab ask={ask} />}
 
       {confirmState && (
@@ -130,7 +133,7 @@ function TeamForm({ team, onClose }) {
     try {
       const url = await uploadToCloudinary(file)
       setForm((f) => ({ ...f, logoUrl: url }))
-      notify('Şəkil yükləndi ✅')
+      notify('Şəkil yükləndi')
     } catch (err) {
       alert(err.message || 'Şəkil yüklənmədi')
     } finally {
@@ -165,12 +168,99 @@ function TeamForm({ team, onClose }) {
 }
 
 // ================= ÇEMPİONAT =================
+// Turnirin bütün mərhələlərinin oyun planını qurur:
+// qrup oyunları sıra ilə, sonra playoff: "1. Qalib Oyun 1 vs Qalib Oyun 2" ...
+function buildTournamentPlan(t, nameOf) {
+  const stages = []
+  const all = Object.values(t.matches || {})
+  const isGroups = t.format === 'groups'
+
+  if (isGroups && t.stage === 'groups') {
+    const groupMatches = all
+      .filter((m) => m.group)
+      .sort((a, b) => ((a.round || '') + (a.teamA || '')).localeCompare((b.round || '') + (b.teamA || '')))
+    let num = 0
+    stages.push({
+      title: 'Qrup mərhələsi',
+      items: groupMatches.map((m) => ({
+        num: ++num,
+        tag: m.group,
+        label: `${nameOf(m.teamA)} vs ${nameOf(m.teamB)}`,
+      })),
+    })
+    // Gözlənilən playoff quruluşu (qruplardan avtomatik püşkatma)
+    const roundMatches = buildKnockoutFromGroups({ ...t, stage: 'knockout' })
+    let fixtureCount = roundMatches.length
+    let teamsInRound = fixtureCount * 2
+    while (fixtureCount >= 1) {
+      const title = roundNameForSize(teamsInRound)
+      stages.push({
+        title,
+        plan: true,
+        items: Array.from({ length: fixtureCount }, (_, i) => ({
+          num: i + 1,
+          label: `Qalib Oyun ${i * 2 + 1} vs Qalib Oyun ${i * 2 + 2}`,
+        })),
+      })
+      if (fixtureCount === 1) break
+      fixtureCount = Math.floor(fixtureCount / 2)
+      teamsInRound = Math.floor(teamsInRound / 2)
+    }
+    return stages
+  }
+
+  if (t.format === 'knockout' || (isGroups && t.stage === 'knockout')) {
+    const ko = all.filter((m) => !m.group)
+    const byRound = {}
+    ko.forEach((m) => { (byRound[m.round] = byRound[m.round] || []).push(m) })
+    Object.entries(byRound)
+      .sort((a, b) => b[1].length - a[1].length)
+      .forEach(([title, ms]) => {
+        stages.push({ title, items: ms.map((m, i) => ({ num: i + 1, label: `${nameOf(m.teamA)} vs ${nameOf(m.teamB)}` })) })
+      })
+    return stages
+  }
+
+  if (t.format === 'league') {
+    const byRound = {}
+    all.forEach((m) => { (byRound[m.round] = byRound[m.round] || []).push(m) })
+    Object.entries(byRound).forEach(([title, ms]) => {
+      stages.push({ title, items: ms.map((m, i) => ({ num: i + 1, label: `${nameOf(m.teamA)} vs ${nameOf(m.teamB)}` })) })
+    })
+  }
+  return stages
+}
+
+function PlanCard({ plan }) {
+  return (
+    <div className="card">
+      <div className="plan-title">OYUN PLANI</div>
+      {plan.length === 0 && <div className="muted" style={{ fontSize: 12 }}>Plan hazırlanmayıb.</div>}
+      {plan.map((st) => (
+        <div className="plan-stage" key={st.title}>
+          <div className="plan-stage-title">
+            {st.title}
+            {st.plan && <span className="chip" style={{ marginLeft: 6 }}>plan</span>}
+          </div>
+          <div className="stack-4">
+            {st.items.map((it) => (
+              <div className="plan-row" key={`${st.title}-${it.num}`}>
+                <span className="plan-num">{it.num}.</span>
+                <span className="plan-label">{it.tag ? `${it.tag} · ` : ''}{it.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ChampionshipTab({ ask }) {
-  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, deleteTournament, recordResult, resetMatch, resetAllResults, notify } = useApp()
+  const { activeTournament, teamList, teams, startChampionship, generateDraw, finishTournament, deleteTournament, resetAllResults, notify } = useApp()
   const [createOpen, setCreateOpen] = useState(false)
   const [format, setFormat] = useState('groups')
   const [selected, setSelected] = useState([])
-  const [resultFor, setResultFor] = useState(null)
 
   async function start(e) {
     e.preventDefault()
@@ -184,12 +274,12 @@ function ChampionshipTab({ ask }) {
     return (
       <div>
         <EmptyState emoji="⚽" title="Aktiv çempionat yoxdur" sub="Komandaları seçin — sistem avtomatik püşkatma edib qarşılaşmaları yaradacaq." />
-        <button className="btn btn-primary btn-block" onClick={() => { setSelected(teamList.map((t) => t.id)); setCreateOpen(true) }}>+ Çempionat yarat</button>
+        <button className="btn btn-primary btn-block" onClick={() => { setSelected(teamList.map((t) => t.id)); setCreateOpen(true) }}>+ Çempionatı başlat</button>
         {createOpen && (
-          <Modal title="Çempionat yarat" onClose={() => setCreateOpen(false)}>
+          <Modal title="Çempionatı başlat" onClose={() => setCreateOpen(false)}>
             <form onSubmit={start}>
               <div className="field">
-                <label>Format</label>
+                <label>Mod</label>
                 <select value={format} onChange={(e) => setFormat(e.target.value)}>
                   <option value="groups">Qarşılaşma modu (Qruplar + Playoff)</option>
                   <option value="knockout">Birbaşa Playoff</option>
@@ -214,7 +304,7 @@ function ChampionshipTab({ ask }) {
                       >
                         <TeamLogo team={t} size={30} />
                         <span className="team-pick-name">{t.name}</span>
-                        <span className="team-pick-check">{sel ? '✓' : ''}</span>
+                        <span className="team-pick-check" />
                       </button>
                     )
                   })}
@@ -228,14 +318,15 @@ function ChampionshipTab({ ask }) {
     )
   }
 
-  const matches = Object.entries(activeTournament.matches || {}).map(([id, m]) => ({ id, ...m }))
-  const rounds = [...new Set(matches.map((m) => m.round))]
+  const matches = Object.values(activeTournament.matches || {})
   const stageLabel = activeTournament.stage === 'groups' ? 'Qrup mərhələsi' : activeTournament.stage === 'knockout' ? 'Playoff' : 'Liqa'
   const groups = activeTournament.groups || null
+  const nameOf = (id) => teams[id]?.name || 'TBD'
+  const plan = useMemo(() => buildTournamentPlan(activeTournament, nameOf), [activeTournament, teams])
 
   return (
     <div>
-      <div className="flex-between" style={{ marginBottom: 10 }}>
+      <div className="flex-between" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{activeTournament.name} <span className="chip" style={{ marginLeft: 6 }}>{stageLabel}</span></div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button className="btn btn-outline btn-sm" onClick={() => ask('Püşkatmanı yenilə', 'Püşkatmanı yeniləmək istəyirsiniz? Hazırkı oyunlar silinəcək.', () => generateDraw(activeTournament.id))}>🎲 Püşkat</button>
@@ -267,78 +358,169 @@ function ChampionshipTab({ ask }) {
         </div>
       )}
 
-      {rounds.map((round) => (
-        <div key={round} className="card" style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 8 }}>{round}</div>
-          <div className="stack-8">
-            {matches.filter((m) => m.round === round).map((m) => {
-              const played = m.scoreA != null && m.scoreB != null
-              return (
-                <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
-                  <div className="flex-between" style={{ marginBottom: 6, gap: 8 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{teams[m.teamA]?.name || 'TBD'} vs {teams[m.teamB]?.name || 'TBD'}</span>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setResultFor(m)}>{played ? 'Nəticəni düzəlt' : 'Nəticə daxil et'}</button>
-                      {played && <button className="btn btn-danger btn-sm" onClick={() => ask('Nəticəni sıfırla', 'Bu nəticəni silmək istədiyinizə əminsiniz?', () => resetMatch(activeTournament.id, m.id))}>Sıfırla</button>}
-                    </div>
-                  </div>
-                  {played && <div className="mono" style={{ fontSize: 14 }}>{m.scoreA} : {m.scoreB}{m.penA != null ? ` (pen. ${m.penA}-${m.penB})` : ''}</div>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
-
-      {resultFor && <ResultForm tournamentId={activeTournament.id} match={resultFor} onClose={() => setResultFor(null)} />}
+      <PlanCard plan={plan} />
     </div>
   )
 }
 
-function ResultForm({ tournamentId, match, onClose }) {
-  const { recordResult, teams } = useApp()
-  const [scoreA, setScoreA] = useState(match.scoreA ?? 0)
-  const [scoreB, setScoreB] = useState(match.scoreB ?? 0)
+// ================= NƏTİCƏLƏR =================
+function ResultsTab({ ask }) {
+  const { activeTournament, teams, recordResult, resetMatch } = useApp()
+  const [editingId, setEditingId] = useState(null)
+  const nameOf = (id) => teams[id]?.name || 'TBD'
+  const allMatches = useMemo(
+    () => (activeTournament ? Object.entries(activeTournament.matches || {}).map(([id, m]) => ({ id, ...m })) : []),
+    [activeTournament],
+  )
+
+  // Cari mərhələnin oyunları, raundlara görə qruplaşdırılmış
+  const grouped = useMemo(() => {
+    if (!activeTournament) return []
+    const t = activeTournament
+    const isGroups = t.format === 'groups'
+    const list = isGroups
+      ? allMatches.filter((m) => (t.stage === 'groups' ? m.group : !m.group))
+      : allMatches
+    const map = {}
+    list.forEach((m) => { (map[m.round || 'Oyunlar'] = map[m.round || 'Oyunlar'] || []).push(m) })
+    const entries = Object.entries(map)
+    if (isGroups && t.stage === 'groups') entries.sort((a, b) => a[0].localeCompare(b[0]))
+    else if (isGroups && t.stage === 'knockout') entries.sort((a, b) => b[1].length - a[1].length)
+    else if (t.format === 'league') {
+      const num = (r) => { const mm = /(\d+)/.exec(r || ''); return mm ? Number(mm[1]) : 999 }
+      entries.sort((a, b) => num(a[0]) - num(b[0]))
+    }
+    entries.forEach(([, ms]) => ms.sort((a, b) => nameOf(a.teamA).localeCompare(nameOf(b.teamA))))
+    return entries
+  }, [activeTournament, allMatches])
+
+  const pending = useMemo(() => grouped.flatMap(([, ms]) => ms).filter((m) => !matchPlayed(m)), [grouped])
+  const firstPendingId = pending[0]?.id || null
+  const activeId = editingId || firstPendingId
+
+  if (!activeTournament) {
+    return <EmptyState emoji="⚽" title="Aktiv çempionat yoxdur" sub="Çempionat başladıqdan sonra nəticələr burada daxil edilir." />
+  }
+  const t = activeTournament
+  const stageLabel = t.stage === 'groups' ? 'Qrup mərhələsi' : t.stage === 'knockout' ? 'Playoff' : 'Liqa'
+
+  return (
+    <div>
+      <div className="flex-between" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name} <span className="chip" style={{ marginLeft: 6 }}>{stageLabel}</span></div>
+        <span className="muted" style={{ fontSize: 12 }}>{pending.length} gözləyən oyun</span>
+      </div>
+
+      {grouped.length === 0 && <EmptyState emoji="📋" title="Oyun yoxdur" sub="Bu mərhələ üçün hələ qarşılaşma yaradılmayıb." />}
+
+      {grouped.map(([round, ms]) => {
+        const roundDone = ms.length > 0 && ms.every(matchPlayed)
+        return (
+          <div className="card res-round" key={round}>
+            <div className="res-round-head">
+              <span className="res-round-title">{round}</span>
+              <span className={`chip ${roundDone ? 'done' : 'pending'}`}>{roundDone ? 'BİTDİ' : 'NÖVBƏDƏ'}</span>
+            </div>
+            <div className="stack-8">
+              {ms.map((m) => (
+                m.id === activeId
+                  ? (
+                    <ResultStep
+                      key={m.id}
+                      tournamentId={t.id}
+                      match={m}
+                      nameOf={nameOf}
+                      label={`Oyun ${ms.indexOf(m) + 1}`}
+                      isEdit={editingId === m.id}
+                      onDone={() => setEditingId(null)}
+                    />
+                  )
+                  : (
+                    <ResultRow
+                      key={m.id}
+                      match={m}
+                      nameOf={nameOf}
+                      onEdit={() => setEditingId(m.id)}
+                      onReset={() => ask('Nəticəni sıfırla', `"${nameOf(m.teamA)} vs ${nameOf(m.teamB)}" nəticəsini silmək istədiyinizə əminsiniz?`, () => resetMatch(t.id, m.id))}
+                    />
+                  )
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ResultRow({ match: m, nameOf, onEdit, onReset }) {
+  const played = matchPlayed(m)
+  return (
+    <div className={`res-row ${played ? 'played' : ''}`}>
+      <div className="res-row-main">
+        <span className="res-teams">{nameOf(m.teamA)} <span className="res-vs">vs</span> {nameOf(m.teamB)}</span>
+        {played && (
+          <span className="res-score">{m.scoreA} : {m.scoreB}{m.penA != null ? ` (pen. ${m.penA}-${m.penB})` : ''}</span>
+        )}
+      </div>
+      <div className="res-row-actions">
+        {played
+          ? <button className="btn btn-ghost btn-sm" onClick={onEdit}>Redaktə</button>
+          : <span className="chip pending">NÖVBƏDƏ</span>}
+        {played && <button className="btn btn-danger btn-sm" onClick={onReset}>Sıfırla</button>}
+      </div>
+    </div>
+  )
+}
+
+function ResultStep({ tournamentId, match, nameOf, label, isEdit, onDone }) {
+  const { recordResult } = useApp()
+  const [scoreA, setScoreA] = useState(match.scoreA ?? '')
+  const [scoreB, setScoreB] = useState(match.scoreB ?? '')
   const [penA, setPenA] = useState(match.penA ?? '')
   const [penB, setPenB] = useState(match.penB ?? '')
-  const isKnockout = !match.group
-  const needPen = isKnockout && Number(scoreA) === Number(scoreB)
+  const isKO = !match.group
+  const needPen = isKO && scoreA !== '' && scoreB !== '' && Number(scoreA) === Number(scoreB)
 
   async function submit(e) {
     e.preventDefault()
-    if (needPen && (penA === '' || penB === '' || penA === penB)) { alert('Penalti nəticəsini daxil edin (fərqli olmalıdır)'); return }
+    if (scoreA === '' || scoreB === '') { alert('Hesabı daxil edin'); return }
+    if (needPen && (penA === '' || penB === '' || Number(penA) === Number(penB))) { alert('Penalti nəticəsini daxil edin (fərqli olmalıdır)'); return }
     await recordResult(tournamentId, match.id, {
       scoreA: Number(scoreA), scoreB: Number(scoreB),
       penA: needPen ? Number(penA) : null, penB: needPen ? Number(penB) : null,
     })
-    onClose()
+    onDone()
   }
 
   return (
-    <Modal title="Nəticə daxil et" onClose={onClose}>
-      <form onSubmit={submit}>
-        <div className="field-row" style={{ alignItems: 'center' }}>
-          <div className="field" style={{ textAlign: 'center' }}>
-            <label>{teams[match.teamA]?.name}</label>
-            <input type="number" min="0" value={scoreA} onChange={(e) => setScoreA(e.target.value)} style={{ textAlign: 'center', fontSize: 20 }} />
-          </div>
-          <div className="field" style={{ textAlign: 'center' }}>
-            <label>{teams[match.teamB]?.name}</label>
-            <input type="number" min="0" value={scoreB} onChange={(e) => setScoreB(e.target.value)} style={{ textAlign: 'center', fontSize: 20 }} />
-          </div>
+    <form onSubmit={submit} className="result-step">
+      <div className="res-step-head">
+        <span className="chip pending">NÖVBƏDƏ · {label}</span>
+        {isKO && <span className="chip">Playoff</span>}
+      </div>
+      <div className="res-step-teams">
+        <span className="res-step-team res-left">{nameOf(match.teamA)}</span>
+        <div className="res-step-scores">
+          <input className="res-score-input" type="number" min="0" inputMode="numeric" value={scoreA} onChange={(e) => setScoreA(e.target.value)} placeholder="0" />
+          <span className="res-step-colon">:</span>
+          <input className="res-score-input" type="number" min="0" inputMode="numeric" value={scoreB} onChange={(e) => setScoreB(e.target.value)} placeholder="0" />
         </div>
-        {needPen && (
-          <div className="field">
-            <label style={{ textAlign: 'center' }}>Əlavə vaxt / Penaltilər</label>
-            <div className="field-row">
-              <div className="field"><label>{teams[match.teamA]?.name}</label><input type="number" min="0" value={penA} onChange={(e) => setPenA(e.target.value)} /></div>
-              <div className="field"><label>{teams[match.teamB]?.name}</label><input type="number" min="0" value={penB} onChange={(e) => setPenB(e.target.value)} /></div>
-            </div>
-          </div>
-        )}
-        <button className="btn btn-primary btn-block">Nəticəni yadda saxla</button>
-      </form>
-    </Modal>
+        <span className="res-step-team res-right">{nameOf(match.teamB)}</span>
+      </div>
+      {needPen && (
+        <div className="res-step-pen">
+          <span className="muted" style={{ fontSize: 11, marginRight: 6 }}>Penaltilər:</span>
+          <input className="res-score-input res-pen" type="number" min="0" inputMode="numeric" value={penA} onChange={(e) => setPenA(e.target.value)} placeholder="0" />
+          <span className="res-step-colon">:</span>
+          <input className="res-score-input res-pen" type="number" min="0" inputMode="numeric" value={penB} onChange={(e) => setPenB(e.target.value)} placeholder="0" />
+        </div>
+      )}
+      <div className="field-row">
+        {isEdit && <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={onDone}>İmtina</button>}
+        <button className="btn btn-primary" style={{ flex: 1 }}>Nəticəni yadda saxla</button>
+      </div>
+    </form>
   )
 }
 

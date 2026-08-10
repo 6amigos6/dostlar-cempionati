@@ -92,6 +92,7 @@ Bu, real Firebase backend-i olan tam işlək sistemdir (məlumatlar Realtime Dat
 - Avtomatik xal cədvəli (qələbə 3, heç-heçə 1, məğlubiyyət 0) və nəticələrin redaktə/sıfırlanması
 - Turnir bitdikdə avtomatik **arxivləşmə** (ad, tarix, komandalar, qruplar, oyunlar, nəticələr, xal cədvəli, final, çempion, statistikalar)
 - Sadə, səliqəli mobil-first dizayn: mərhələ yolu, təmiz qarşılaşma kartları və qrup kartları
-- Admin panel sadədir: yalnız **Komandalar / Çempionat / Tarixçə**
+- Admin panel sadədir: **Komandalar / Çempionat / Nəticələr / Tarixçə** — Çempionat bölməsində tam **Oyun Planı** (qrup oyunları sırası + 1/4 → 1/2 → Final), Nəticələr bölməsində isə bir-bir nəticə daxiletmə, redaktə və sıfırlama
+- Açıq/tünd (Light/Dark) tema düyməsi sağ yuxarıdadır və seçim yadda saxlanılır
 
 Oyunçu sistemi, canlı matç statusları (Canlı / Planlaşdırılıb), şərh və stadion/tarix sahələri bu versiyada bilərəkdən **tamamilə çıxarılıb**.
