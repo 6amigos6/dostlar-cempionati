@@ -1,20 +1,30 @@
-// Turnirin bütün "biznes məntiqi" bu fayldadır: püşkatma, qrup sistemi,
-// cədvəl hesablanması və avtomatik mərhələ keçidi.
+// Turnirin sadə biznes məntiqi: təsadüfi püşkatma, xal cədvəli və
+// nəticələrə görə növbəti turun avtomatik qurulması (Swiss sistemi).
 
-export const AVATAR_PALETTE = ['#1FA35C', '#D4AF37', '#2563EB', '#DC2626', '#7C3AED', '#EA580C', '#0D9488', '#DB2777']
+export const DEFAULT_POINTS = { win: 3, draw: 1, loss: 0 }
 
+const PALETTE = ['#1FA35C', '#D4AF37', '#2563EB', '#DC2626', '#7C3AED', '#EA580C', '#0D9488', '#DB2777']
+
+// Komanda avatarsı üçün ad əsasında sabit rəng
 export function avatarColorFor(seedStr = '') {
   let hash = 0
   for (let i = 0; i < seedStr.length; i++) hash = seedStr.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+  return PALETTE[Math.abs(hash) % PALETTE.length]
 }
 
-// Qarşılaşmanın oynanıb-oynanılmadığını yoxlayır (nəticə daxil olub-olmamasına görə)
+export function uid(prefix = 'id') {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
 export function matchPlayed(m) {
   return !!m && m.scoreA != null && m.scoreB != null
 }
 
-// Fisher-Yates shuffle — ədalətli təsadüfi püşkatma
+export function pairKey(a, b) {
+  return [a, b].sort().join('|')
+}
+
+// Fisher-Yates shuffle
 export function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -24,137 +34,92 @@ export function shuffle(arr) {
   return a
 }
 
-const ROUND_NAMES = {
-  2: 'Final',
-  4: '1/2 Final',
-  8: '1/4 Final',
-  16: '1/8 Final',
-  32: '1/16 Final',
+// İlk tur: komandalar təsadüfi cütlənir. Tək sayda komanda varsa biri bu turda istirahət edir.
+export function buildFirstRound(teamIds) {
+  const ordered = shuffle(teamIds)
+  const pairs = []
+  for (let i = 0; i + 1 < ordered.length; i += 2) pairs.push([ordered[i], ordered[i + 1]])
+  return pairs
 }
 
-export function roundNameForSize(teamCount) {
-  return ROUND_NAMES[teamCount] || `${teamCount} komandalıq mərhələ`
-}
-
-// n-dən böyük olmayan ən böyük 2-nin qüvvəti (playoff ölçüsü üçün)
-export function largestPowerOfTwoLeq(n) {
-  let p = 1
-  while (p * 2 <= n) p *= 2
-  return p
-}
-
-
-// Komandaları təsadüfi olaraq ~4-lük qruplara bölür (A, B, C ...)
-export function splitIntoGroups(teamIds) {
-  const shuffled = shuffle(teamIds)
-  const n = shuffled.length
-  if (n === 0) return {}
-  const numGroups = Math.max(1, Math.round(n / 4))
-  const groups = {}
-  shuffled.forEach((id, i) => {
-    const gi = Math.min(numGroups - 1, Math.floor((i * numGroups) / n))
-    const letter = String.fromCharCode(65 + gi)
-    ;(groups[letter] = groups[letter] || []).push(id)
+// Növbəti tur: komandalar cədvələ görə sıralanır (ən güclü başda) və
+// ən yaxın gücdəki cütlər bir-biri ilə oynayır (1-ci ilə 2-ci, 3-cü ilə 4-cü ...).
+// Əvvəllər oynamış cütlər təkrarlanmır. Ola bilməyən komanda (tək sayda) istirahət edir.
+export function buildNextRound(teamIds, matches, pointsRule = DEFAULT_POINTS) {
+  const played = new Set()
+  matches.forEach((m) => {
+    if (m.teamA && m.teamB) played.add(pairKey(m.teamA, m.teamB))
   })
-  return groups
-}
+  const ordered = computeStandings(teamIds, matches, pointsRule).map((r) => r.teamId)
+  const n = ordered.length
+  if (n < 2) return []
 
-// Qruplar daxilində round-robin qarşılaşmalarını yaradır
-export function generateGroupMatches(groups) {
-  const matches = []
-  Object.entries(groups).forEach(([letter, teamIds]) => {
-    generateRoundRobin(teamIds).forEach((m) => {
-      matches.push({ ...m, round: `${letter} qrupu · ${m.round}`, group: letter })
-    })
-  })
-  return matches
-}
-
-// Qrup mərhələsi bitdikdən sonra playoff mərhələsini qurur.
-// Komandalar qrup cədvəlinə görə düzülür; playoff komanda sayına uyğun mərhələdən başlayır
-// (8 komanda → 1/4 Final, 16 komanda → 1/8 Final və s.). Cütlər qrup-rəqib şəklində düzülür.
-export function buildKnockoutFromGroups(tournament) {
-  const groups = tournament.groups || {}
-  const matches = Object.values(tournament.matches || {})
-  const perGroup = Object.entries(groups).map(([letter, ids], gi) => {
-    const table = computeStandings(ids, matches.filter((m) => m.group === letter), tournament.pointsRule)
-    const ordered = table.map((r) => r.teamId)
-    return gi % 2 === 1 ? [...ordered].reverse() : ordered
-  })
-  const total = perGroup.reduce((sum, g) => sum + g.length, 0)
-  const target = largestPowerOfTwoLeq(Math.max(2, total))
-  const maxLen = Math.max(0, ...perGroup.map((g) => g.length))
-  const ordered = []
-  for (let i = 0; i < maxLen; i++) perGroup.forEach((g) => { if (g[i]) ordered.push(g[i]) })
-  return generatePlayoffRound(ordered.slice(0, target), { seeded: true })
-}
-
-// N komanda üçün ilk playoff mərhələsinin qarşılaşmalarını yaradır (seed və ya təsadüfi)
-export function generatePlayoffRound(teamIds, { seeded = false } = {}) {
-  const ordered = seeded ? teamIds : shuffle(teamIds)
-  const matches = []
-  for (let i = 0; i < ordered.length; i += 2) {
-    matches.push({
-      teamA: ordered[i] || null,
-      teamB: ordered[i + 1] || null,
-      round: roundNameForSize(ordered.length),
-      scoreA: null,
-      scoreB: null,
-    })
+  // avail[i][j] = bu cütlük hələ oynamayıb
+  const avail = Array.from({ length: n }, () => new Array(n).fill(false))
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (!played.has(pairKey(ordered[i], ordered[j]))) { avail[i][j] = true; avail[j][i] = true }
+    }
   }
-  return matches
-}
 
-// Bir mərhələnin bütün oyunları bitdikdən sonra qaliblərdən növbəti mərhələni qurur
-export function buildNextRound(finishedMatches) {
-  const winners = finishedMatches.map((m) => winnerOf(m)).filter(Boolean)
-  if (winners.length < 2) return { matches: [], champion: winners[0] || null }
-  if (winners.length === 1) return { matches: [], champion: winners[0] }
-  return { matches: generatePlayoffRound(winners, { seeded: true }), champion: null }
-}
+  // Maksimum cütlük axtarışı (backtracking). Kiçik N üçün sürətli və dəqiqdir.
+  // Məqsəd: mümkün olan ən çox cüt, cütlər arası cədvəl məsafəsi isə ən az (ən güclülər bir-biri ilə).
+  const mate = new Array(n).fill(-1)
+  let best = []
+  let bestSize = 0
+  let bestGap = Infinity
+  let nodes = 0
 
-export function winnerOf(match) {
-  if (!matchPlayed(match)) return null
-  if (match.scoreA > match.scoreB) return match.teamA
-  if (match.scoreB > match.scoreA) return match.teamB
-  if (match.penA != null && match.penB != null) {
-    return match.penA > match.penB ? match.teamA : match.teamB
+  function record() {
+    const pairs = []
+    let gap = 0
+    for (let i = 0; i < n; i++) {
+      if (mate[i] !== -1 && i < mate[i]) { pairs.push([ordered[i], ordered[mate[i]]]); gap += mate[i] - i }
+    }
+    const size = pairs.length
+    if (size > bestSize || (size === bestSize && gap < bestGap)) {
+      bestSize = size
+      bestGap = gap
+      best = pairs
+    }
   }
-  return null // heç-heçə, uzatma/penalti gözlənilir
-}
 
-// Liqa/qrup sistemi üçün round-robin qarşılaşma cədvəli
-export function generateRoundRobin(teamIds) {
-  const teams = [...teamIds]
-  if (teams.length % 2 !== 0) teams.push(null) // bye
-  const rounds = teams.length - 1
-  const half = teams.length / 2
-  const matches = []
-  let arr = [...teams]
-  for (let r = 0; r < rounds; r++) {
-    for (let i = 0; i < half; i++) {
-      const a = arr[i]
-      const b = arr[arr.length - 1 - i]
-      if (a && b) {
-        matches.push({ teamA: a, teamB: b, round: `Tur ${r + 1}`, scoreA: null, scoreB: null })
+  function dfs(i) {
+    if (++nodes > 200000) return
+    if (i === n) { record(); return }
+    if (mate[i] !== -1) { dfs(i + 1); return }
+    // Prune: qalan komandalardan mümkün olan maksimum cüt sayı rekordu keçə bilmirsə dayan
+    let unmatched = 0
+    let matched = 0
+    for (let k = 0; k < n; k++) { if (mate[k] !== -1) matched++; else if (k >= i) unmatched++ }
+    if (matched / 2 + Math.floor(unmatched / 2) < bestSize) return
+    // i istirahət edir (cüt olmadan)
+    dfs(i + 1)
+    // i hər uyğun partnere cütləşir
+    for (let u = i + 1; u < n; u++) {
+      if (mate[u] === -1 && avail[i][u]) {
+        mate[i] = u
+        mate[u] = i
+        dfs(i + 1)
+        mate[i] = -1
+        mate[u] = -1
       }
     }
-    arr = [arr[0], ...arr.slice(-1), ...arr.slice(1, -1)]
   }
-  return matches
+
+  dfs(0)
+  return best
 }
 
-const DEFAULT_POINTS = { win: 3, draw: 1, loss: 0 }
-
-// Bir qrup/liqa üçün POS/O/W/D/L/GF/GA/GD/PTS cədvəli
+// Xal cədvəli: Oyun / Qələbə / Heç-heçə / Məğlubiyyət / Vurulan / Buraxılan / Xal
+// Sıralama: xal → top fərqi → vurulan qol.
 export function computeStandings(teamIds, matches, pointsRule = DEFAULT_POINTS) {
   const table = {}
   teamIds.forEach((id) => {
-    table[id] = { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, pts: 0, form: [] }
+    table[id] = { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0 }
   })
   matches
     .filter((m) => matchPlayed(m) && m.teamA && m.teamB && table[m.teamA] && table[m.teamB])
-    .sort((a, b) => (a.playedAt || 0) - (b.playedAt || 0))
     .forEach((m) => {
       const A = table[m.teamA]
       const B = table[m.teamB]
@@ -163,26 +128,11 @@ export function computeStandings(teamIds, matches, pointsRule = DEFAULT_POINTS) 
       B.gf += m.scoreB; B.ga += m.scoreA
       if (m.scoreA > m.scoreB) {
         A.won++; B.lost++; A.pts += pointsRule.win; B.pts += pointsRule.loss
-        A.form.push('W'); B.form.push('L')
       } else if (m.scoreB > m.scoreA) {
         B.won++; A.lost++; B.pts += pointsRule.win; A.pts += pointsRule.loss
-        B.form.push('W'); A.form.push('L')
       } else {
         A.drawn++; B.drawn++; A.pts += pointsRule.draw; B.pts += pointsRule.draw
-        A.form.push('D'); B.form.push('D')
       }
     })
-  Object.values(table).forEach((t) => { t.gd = t.gf - t.ga; t.form = t.form.slice(-5) })
-  return Object.values(table).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
-}
-
-export function formatDateTimeBaku(ts) {
-  if (!ts) return ''
-  return new Date(ts).toLocaleString('az-AZ', {
-    timeZone: 'Asia/Baku', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
-
-export function uid(prefix = 'id') {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+  return Object.values(table).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf)
 }
