@@ -25,7 +25,7 @@ export default function App() {
           Dostlar Çempionatı
         </a>
         <a href={view === 'admin' ? '#/' : '#/admin'} className="btn btn-ghost btn-sm">
-          {view === 'admin' ? '← Sayt' : '🔐 Admin'}
+          {view === 'admin' ? '← Sayt' : 'Admin'}
         </a>
       </header>
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
-import { db } from './firebase'
+import { db, auth } from './firebase'
 import { ref, onValue, set, update, remove, get } from 'firebase/database'
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth'
 import { uid, computeStandings, buildFirstRound, buildNextRound, matchPlayed, DEFAULT_POINTS } from './lib/logic'
 
 const AppCtx = createContext(null)
@@ -23,6 +24,38 @@ export function AppProvider({ children }) {
   const archive = useCollection('archive')
   const settings = useCollection('settings')
   const [toast, setToast] = useState(null)
+  const [authUid, setAuthUid] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
+
+  // Anonim giriş: hər brauzerdə sabit istifadəçi kimliyi yaradır.
+  // Bu kimlik komanda sahibliyini (ownerId) təmin edir və
+  // Firebase Security Rules backend-də "yalnız sahib dəyişə bilər" qaydasını tətbiq edir.
+  // Əgər Firebase Console-da Anonymous sign-in aktiv deyilsə, cihaz əsaslı
+  // identifikatora keçir (app yenə tam işləyir; real qorunma üçün
+  // Anonymous aktiv edilib rules tətbiq edilməlidir — README-ə baxın).
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUid(user.uid)
+        setAuthReady(true)
+      } else {
+        signInAnonymously(auth)
+          .then((cred) => { setAuthUid(cred.user.uid); setAuthReady(true) })
+          .catch(() => {
+            try {
+              let did = localStorage.getItem('dc_device_uid')
+              if (!did) {
+                did = 'dev_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36)
+                localStorage.setItem('dc_device_uid', did)
+              }
+              setAuthUid(did)
+            } catch { /* no-op */ }
+            setAuthReady(true)
+          })
+      }
+    })
+    return () => unsub()
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -32,7 +65,7 @@ export function AppProvider({ children }) {
 
   const notify = useCallback((msg) => setToast(msg), [])
 
-  const loading = teams === null || tournaments === null || settings === null
+  const loading = !authReady || teams === null || tournaments === null || settings === null
 
   const activeTournamentId = settings?.activeTournamentId || null
   const rawActive = activeTournamentId && tournaments?.[activeTournamentId]
@@ -86,9 +119,25 @@ export function AppProvider({ children }) {
   }, [tournaments, settings, teams, loading, legacyActive, activeTournamentId])
 
   // ---------- Komandalar ----------
-  const addTeam = useCallback(async (name) => {
+  // Komanda sahibinə (ownerId) bağlanır — yalnız sahib onu redaktə/silə bilər
+  // (həm UI, həm Firebase Security Rules səviyyəsində).
+  const addTeam = useCallback(async (name, logoUrl) => {
+    if (!authUid) return
     const id = uid('team')
-    await set(ref(db, `teams/${id}`), { name: name.trim(), createdAt: Date.now() })
+    const t = { name: name.trim(), createdAt: Date.now(), ownerId: authUid }
+    if (logoUrl) t.logoUrl = logoUrl
+    await set(ref(db, `teams/${id}`), t)
+    return id
+  }, [authUid])
+
+  const updateTeam = useCallback(async (id, patch) => {
+    const upd = {}
+    if (patch.name != null) upd.name = patch.name.trim()
+    if (patch.logoUrl !== undefined) {
+      if (patch.logoUrl) upd.logoUrl = patch.logoUrl
+      else upd.logoUrl = null
+    }
+    if (Object.keys(upd).length) await update(ref(db, `teams/${id}`), upd)
   }, [])
 
   const deleteTeam = useCallback((id) => remove(ref(db, `teams/${id}`)), [])
@@ -200,7 +249,8 @@ export function AppProvider({ children }) {
   const value = {
     teams, teamList, tournaments, archive, archiveList,
     activeTournament, activeTournamentId, loading, notify, toast,
-    addTeam, deleteTeam,
+    authUid,
+    addTeam, updateTeam, deleteTeam,
     archiveCurrent, startTournament, recordResult, finishTournament, deleteTournament, deleteArchivedTournament,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

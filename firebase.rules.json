@@ -1,0 +1,29 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    "teams": {
+      "$teamId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((newData.exists() && newData.val().ownerId === auth.uid) || (!newData.exists() && data.exists() && data.val().ownerId === auth.uid))"
+      }
+    },
+    "tournaments": {
+      "$tournamentId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "archive": {
+      "$id": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "settings": {
+      "$key": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
