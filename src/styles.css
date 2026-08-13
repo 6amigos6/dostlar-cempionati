@@ -41,7 +41,7 @@ button { font-family: inherit; }
 .brand-mark {
   width: 26px; height: 26px; border-radius: 7px;
   background: linear-gradient(135deg, var(--turf), var(--turf-dim));
-  display: grid; place-items: center; font-size: 14px;
+  display: grid; place-items: center; color: #fff;
 }
 
 /* ---------- Cards ---------- */
@@ -72,11 +72,12 @@ button { font-family: inherit; }
 
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 11.5px; color: var(--ink-muted); margin-bottom: 5px; font-weight: 600; }
-.field input, .field select {
+.field input, .field select, .field textarea {
   width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border-strong);
   background: var(--elevated); color: var(--ink); font-size: 13.5px; font-family: inherit;
+  resize: vertical;
 }
-.field input:focus, .field select:focus { outline: 2px solid var(--turf); outline-offset: 1px; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--turf); outline-offset: 1px; }
 .field-row { display: flex; gap: 10px; }
 .field-row .field { flex: 1; }
 
@@ -90,18 +91,19 @@ button { font-family: inherit; }
 .tab.active { background: var(--turf); color: #fff; border-color: transparent; }
 
 /* ---------- Table ---------- */
-.table { width: 100%; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table { width: 100%; min-width: 440px; }
 .table-head, .table-row {
   display: flex; align-items: center; gap: 6px; padding: 8px 4px; font-size: 12.5px;
 }
-.table-head { color: var(--ink-dim); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.table-head { color: var(--ink-dim); font-size: 9px; letter-spacing: .4px; text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .table-row + .table-row { border-top: 1px dashed rgba(240, 197, 62, .08); }
 .table-row .team-logo { width: 22px; height: 22px; font-size: 10px; border-radius: 6px; }
-.c-pos { width: 20px; text-align: center; color: var(--ink-dim); }
+.c-pos { width: 18px; text-align: center; color: var(--ink-dim); flex-shrink: 0; }
 .c-team { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
 .c-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c-num { width: 24px; text-align: center; color: var(--ink-muted); }
-.c-pts { width: 32px; text-align: center; font-weight: 800; color: var(--gold); }
+.c-num { width: 56px; text-align: center; color: var(--ink-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.c-pts { width: 38px; text-align: center; font-weight: 800; color: var(--gold); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
 /* ---------- Match rows ---------- */
 .match-row {
@@ -139,15 +141,71 @@ button { font-family: inherit; }
 .tournament-status { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--gold); }
 .tournament-status.done { color: var(--turf); }
 
-.champion-banner {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  padding: 16px; border-radius: var(--radius); text-align: center;
-  background: radial-gradient(120% 170% at 50% -50%, rgba(240, 197, 62, .28), transparent 62%), var(--surface);
+.champion-section {
+  position: relative; overflow: hidden;
+  text-align: center; padding: 28px 16px 22px;
+  border-radius: var(--radius);
+  background: radial-gradient(120% 170% at 50% -50%, rgba(240, 197, 62, .30), transparent 62%), var(--surface);
   border: 1px solid var(--border-strong);
 }
-.champion-banner .team-logo { width: 48px; height: 48px; font-size: 18px; border-radius: 14px; }
-.champion-label { font-size: 11px; letter-spacing: 2.4px; color: var(--gold); }
-.champion-name { font-size: 19px; font-weight: 800; margin-top: 2px; }
+.champion-ring {
+  position: absolute; left: 50%; top: -120px; transform: translateX(-50%);
+  width: 260px; height: 260px; border-radius: 50%;
+  border: 1px solid rgba(240, 197, 62, .18);
+  pointer-events: none;
+}
+.champion-ring::before {
+  content: ''; position: absolute; inset: 24px;
+  border: 1px dashed rgba(240, 197, 62, .22); border-radius: 50%;
+}
+.champion-eyebrow {
+  position: relative;
+  display: inline-block; font-size: 10px; font-weight: 800;
+  letter-spacing: 4px; color: var(--gold); text-transform: uppercase;
+  padding: 5px 14px; border: 1px solid rgba(240, 197, 62, .4);
+  border-radius: 30px; background: rgba(240, 197, 62, .08);
+  margin-bottom: 16px;
+}
+.champion-logo {
+  position: relative;
+  width: 104px; height: 104px; margin: 0 auto 14px;
+  border-radius: 50%; padding: 6px;
+  border: 2px solid rgba(240, 197, 62, .55);
+  background: linear-gradient(160deg, var(--elevated), var(--surface));
+  box-shadow: 0 0 0 6px rgba(240, 197, 62, .08), 0 10px 30px rgba(0, 0, 0, .4);
+}
+.champion-logo .team-logo { width: 90px; height: 90px; border-radius: 50%; font-size: 30px; }
+.champion-logo .team-logo-img { object-fit: cover; border-radius: 50%; }
+.champion-name { position: relative; font-weight: 800; font-size: 26px; letter-spacing: .5px; }
+.champion-tourney { position: relative; color: var(--ink-muted); font-size: 12.5px; margin-top: 4px; }
+.champion-stats {
+  position: relative;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  margin-top: 18px;
+}
+.champion-stat {
+  background: var(--elevated); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 4px;
+}
+.champion-stat-value { font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+.champion-stat-label { font-size: 9px; letter-spacing: .5px; text-transform: uppercase; color: var(--ink-muted); margin-top: 2px; }
+.champion-stat.gold { border-color: rgba(240, 197, 62, .5); background: rgba(240, 197, 62, .1); }
+.champion-stat.gold .champion-stat-value { color: var(--gold); }
+
+/* ---------- Eşləşmə sonu: çempion bloku ---------- */
+.pairing-champion {
+  margin-top: 14px; text-align: center;
+  padding: 16px 14px; border-radius: var(--radius);
+  background: radial-gradient(120% 180% at 50% -60%, rgba(240, 197, 62, .26), transparent 62%), var(--elevated);
+  border: 1px solid var(--border-strong);
+}
+.pairing-champion-eyebrow {
+  font-size: 10px; font-weight: 800; letter-spacing: 4px; color: var(--gold);
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.pairing-champion-main { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.pairing-champion-main .team-logo { border-radius: 14px; }
+.pairing-champion-name { font-weight: 800; font-size: 20px; }
 
 /* ---------- Team logo ---------- */
 .team-logo {
@@ -170,7 +228,11 @@ button { font-family: inherit; }
 
 /* ---------- Empty / loading ---------- */
 .empty-state { text-align: center; padding: 40px 16px; color: var(--ink-muted); }
-.empty-emoji { font-size: 34px; margin-bottom: 10px; display: block; }
+.empty-icon {
+  width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--ink-muted);
+  background: var(--elevated); border: 1px solid var(--border);
+}
 .loading { text-align: center; padding: 44px; color: var(--ink-muted); font-size: 12.5px; }
 .spinner {
   width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--turf);
@@ -197,6 +259,7 @@ button { font-family: inherit; }
 .icon-btn {
   width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--elevated); color: var(--ink); cursor: pointer; font-size: 15px;
+  display: grid; place-items: center;
 }
 
 /* ---------- misc ---------- */
@@ -295,19 +358,44 @@ button { font-family: inherit; }
   padding: 14px; background: none; border: none; color: var(--ink); cursor: pointer; text-align: left;
 }
 .arch-head:hover { background: rgba(255, 255, 255, .02); }
-.arch-chevron { color: var(--ink-muted); font-size: 12px; transition: transform .2s; flex-shrink: 0; }
+.arch-chevron { color: var(--ink-muted); flex-shrink: 0; transition: transform .2s; }
+.arch-chevron.open { transform: rotate(180deg); }
 .arch-body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
 .arch-champ {
-  display: flex; align-items: center; gap: 10px; margin-top: 12px;
-  padding: 10px 12px; border-radius: 12px; background: rgba(240, 197, 62, .07);
+  display: flex; align-items: center; gap: 12px; margin-top: 12px;
+  padding: 12px 14px; border-radius: 12px; background: rgba(240, 197, 62, .07);
   border: 1px solid var(--border-strong);
 }
+.arch-champ-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: 10.5px; color: var(--ink-muted); }
+.arch-champ-stats span { background: var(--elevated); border: 1px solid var(--border); padding: 2px 7px; border-radius: 20px; }
+.arch-champ-stats .pts { color: var(--gold); font-weight: 800; }
+.arch-teams { display: flex; flex-wrap: wrap; gap: 6px; }
+.arch-team {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600; padding: 5px 10px 5px 5px;
+  border: 1px solid var(--border); border-radius: 30px; background: var(--elevated);
+}
+.arch-team .team-logo { width: 18px; height: 18px; font-size: 8px; border-radius: 50%; }
+.match-row.final { border-color: rgba(240, 197, 62, .45); background: rgba(240, 197, 62, .06); }
+.arch-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.arch-stat {
+  background: var(--elevated); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 4px; text-align: center;
+}
+.arch-stat .v { display: block; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+.arch-stat .l { font-size: 9px; letter-spacing: .5px; text-transform: uppercase; color: var(--ink-muted); }
 
 /* ---------- Team pick (turnir seçimi) ---------- */
 .team-pick { -webkit-tap-highlight-color: transparent; transition: border-color .12s, background .12s; }
 .team-pick:active { transform: none; }
 .team-pick .team-logo { width: 28px; height: 28px; font-size: 12px; border-radius: 8px; }
-.team-pick-check { color: var(--gold); font-weight: 900; font-size: 13px; flex-shrink: 0; }
+.team-pick-check {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; color: #1a1400;
+  border: 1px solid var(--border-strong); background: var(--elevated);
+  transition: background .12s, border-color .12s;
+}
+.team-pick-check.on { background: var(--gold); border-color: var(--gold); }
 
 /* Tap highlight - bütün elementlərdə qaralmanın qarşısı */
 button, a, .team-pick { -webkit-tap-highlight-color: transparent; }

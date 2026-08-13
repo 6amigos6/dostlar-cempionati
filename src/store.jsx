@@ -121,11 +121,12 @@ export function AppProvider({ children }) {
   // ---------- Komandalar ----------
   // Komanda sahibinə (ownerId) bağlanır — yalnız sahib onu redaktə/silə bilər
   // (həm UI, həm Firebase Security Rules səviyyəsində).
-  const addTeam = useCallback(async (name, logoUrl) => {
+  const addTeam = useCallback(async (name, logoUrl, info) => {
     if (!authUid) return
     const id = uid('team')
     const t = { name: name.trim(), createdAt: Date.now(), ownerId: authUid }
     if (logoUrl) t.logoUrl = logoUrl
+    if (info != null && info.trim()) t.info = info.trim()
     await set(ref(db, `teams/${id}`), t)
     return id
   }, [authUid])
@@ -136,6 +137,10 @@ export function AppProvider({ children }) {
     if (patch.logoUrl !== undefined) {
       if (patch.logoUrl) upd.logoUrl = patch.logoUrl
       else upd.logoUrl = null
+    }
+    if (patch.info !== undefined) {
+      if (patch.info != null && patch.info.trim()) upd.info = patch.info.trim()
+      else upd.info = null
     }
     if (Object.keys(upd).length) await update(ref(db, `teams/${id}`), upd)
   }, [])

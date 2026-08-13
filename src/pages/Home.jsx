@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../store.jsx'
-import { TeamLogo, EmptyState } from '../components.jsx'
+import { TeamLogo, EmptyState, StandingsTable } from '../components.jsx'
 import { Bracket } from '../lib/bracket.jsx'
 import { ArchiveSection } from '../lib/archive.jsx'
 import { computeStandings, matchPlayed } from '../lib/logic.js'
@@ -41,11 +41,15 @@ export default function Home() {
       ) : (
         <>
           <TournamentHeader t={t} currentRoundLabel={currentRoundLabel} />
-          <ChampionBanner t={t} teams={teams} />
+          {t.finished && <ChampionSection t={t} teams={teams} standings={standings} />}
 
           <div className="card">
             <div className="card-title">Xal cədvəli</div>
-            <StandingsTable standings={standings} teams={teams} nameOf={(id) => teams?.[id]?.name || t.teamsInfo?.[id]?.name || 'TBD'} />
+            <StandingsTable
+              standings={standings}
+              nameOf={(id) => teams?.[id]?.name || t.teamsInfo?.[id]?.name || 'TBD'}
+              logoOf={(id) => teams?.[id] || { name: t.teamsInfo?.[id]?.name || 'TBD' }}
+            />
           </div>
 
           <PairingsSection t={t} matches={matches} teams={teams} rounds={rounds} />
@@ -74,16 +78,37 @@ function TournamentHeader({ t, currentRoundLabel }) {
   )
 }
 
-function ChampionBanner({ t, teams }) {
+// Çempion bölməsi: böyük və vizual — şəkil, ad, turnir, ümumi statistika.
+function ChampionSection({ t, teams, standings }) {
   const champ = t.champion ? (t.teamsInfo?.[t.champion] || teams?.[t.champion]) : null
   if (!champ) return null
+  const row = standings.find((r) => r.teamId === t.champion)
+
   return (
-    <div className="champion-banner">
-      <TeamLogo team={champ} size={48} />
-      <div>
-        <div className="champion-label">ÇEMPİON</div>
-        <div className="champion-name">{champ.name}</div>
+    <div className="champion-section">
+      <div className="champion-ring" aria-hidden="true" />
+      <div className="champion-eyebrow">ÇEMPİON</div>
+      <div className="champion-logo">
+        <TeamLogo team={champ} size={92} />
       </div>
+      <div className="champion-name">{champ.name}</div>
+      <div className="champion-tourney">{t.name} {t.season}</div>
+      <div className="champion-stats">
+        <ChampionStat label="Oyun" value={row?.played ?? '–'} />
+        <ChampionStat label="Qələbə" value={row?.won ?? '–'} />
+        <ChampionStat label="Heç-heçə" value={row?.drawn ?? '–'} />
+        <ChampionStat label="Məğlubiyyət" value={row?.lost ?? '–'} />
+        <ChampionStat label="Xal" value={row?.pts ?? '–'} gold />
+      </div>
+    </div>
+  )
+}
+
+function ChampionStat({ label, value, gold }) {
+  return (
+    <div className={`champion-stat ${gold ? 'gold' : ''}`}>
+      <div className="champion-stat-value">{value}</div>
+      <div className="champion-stat-label">{label}</div>
     </div>
   )
 }
@@ -107,36 +132,6 @@ function NoTournament({ archiveList, teams }) {
         <span style={{ fontSize: 20, fontWeight: 800 }}>{champ.name}</span>
       </div>
       <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{last.name} · {last.season}</div>
-    </div>
-  )
-}
-
-function StandingsTable({ standings, teams, nameOf }) {
-  return (
-    <div className="table">
-      <div className="table-head">
-        <span className="c-pos">#</span>
-        <span className="c-team">Komanda</span>
-        <span className="c-num">O</span>
-        <span className="c-num">Q</span>
-        <span className="c-num">H</span>
-        <span className="c-num">M</span>
-        <span className="c-pts">Xal</span>
-      </div>
-      {standings.map((r, i) => (
-        <div className="table-row" key={r.teamId}>
-          <span className="c-pos">{i + 1}</span>
-          <span className="c-team">
-            <TeamLogo team={teams?.[r.teamId]} size={22} />
-            <span className="c-name">{nameOf(r.teamId)}</span>
-          </span>
-          <span className="c-num">{r.played}</span>
-          <span className="c-num">{r.won}</span>
-          <span className="c-num">{r.drawn}</span>
-          <span className="c-num">{r.lost}</span>
-          <span className="c-pts">{r.pts}</span>
-        </div>
-      ))}
     </div>
   )
 }
@@ -187,7 +182,20 @@ function PairingsSection({ t, matches, teams, rounds }) {
     }
   }
 
-  const bracketRounds = rounds.map(([label, ms], i) => ({ id: String(i), name: label, matches: ms }))
+  // Son tur "Final", qalan turlar "Tur N" olaraq göstərilir.
+  const maxRound = useMemo(() => {
+    let mx = 0
+    matches.forEach((m) => { if (typeof m.round === 'number' && m.round > mx) mx = m.round })
+    return mx
+  }, [matches])
+
+  const bracketRounds = rounds.map(([label, ms]) => {
+    const num = typeof ms[0]?.round === 'number' ? ms[0].round : null
+    const name = num != null && num === maxRound ? 'Final' : label
+    return { id: String(label), name, matches: ms }
+  })
+
+  const champ = t.champion ? (t.teamsInfo?.[t.champion] || teams?.[t.champion]) : null
 
   return (
     <div className="card">
@@ -195,7 +203,7 @@ function PairingsSection({ t, matches, teams, rounds }) {
         <div className="card-title" style={{ margin: 0 }}>Eşləşmə</div>
         {matches.length > 0 && !revealing && (
           <button className="btn btn-gold btn-sm" onClick={download} disabled={downloading}>
-            {downloading ? 'Hazırlanır...' : '⬇ Yüklə'}
+            {downloading ? 'Hazırlanır...' : 'Yüklə'}
           </button>
         )}
       </div>
@@ -213,18 +221,30 @@ function PairingsSection({ t, matches, teams, rounds }) {
           onDone={() => setRevealing(false)}
         />
       ) : (
-        <div className="bk-scroll">
-          <div className="board" ref={bracketRef}>
-            <Bracket
-              rounds={bracketRounds}
-              matchWidth={190}
-              connectorWidth={32}
-              matchGap={8}
-              renderRoundHeader={(r) => <div className="round-header">{r.name}</div>}
-              renderMatch={(m) => <BracketMatchCard m={m} nameOf={nameOf} teams={teams} />}
-            />
+        <>
+          <div className="bk-scroll">
+            <div className="board" ref={bracketRef}>
+              <Bracket
+                rounds={bracketRounds}
+                matchWidth={190}
+                connectorWidth={32}
+                matchGap={8}
+                renderRoundHeader={(r) => <div className="round-header">{r.name}</div>}
+                renderMatch={(m) => <BracketMatchCard m={m} nameOf={nameOf} teams={teams} />}
+              />
+            </div>
           </div>
-        </div>
+
+          {t.finished && champ && (
+            <div className="pairing-champion">
+              <div className="pairing-champion-eyebrow">CHAMPION</div>
+              <div className="pairing-champion-main">
+                <TeamLogo team={champ} size={44} />
+                <div className="pairing-champion-name">{champ.name}</div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useApp } from '../store.jsx'
-import { TeamLogo, Modal, DeleteGate, EmptyState } from '../components.jsx'
+import { TeamLogo, Modal, DeleteGate, EmptyState, StandingsTable, CheckIcon } from '../components.jsx'
 import { ArchiveSection } from '../lib/archive.jsx'
 import { uploadImage } from '../lib/upload.js'
 import { computeStandings, matchPlayed } from '../lib/logic.js'
@@ -9,17 +9,185 @@ const TABS = ['Komandalar', 'Turnir', 'Tarixçə']
 
 export default function Admin() {
   const [tab, setTab] = useState('Turnir')
+  const [hiddenOpen, setHiddenOpen] = useState(false)
+  const [codePrompt, setCodePrompt] = useState(false)
+  const tapsRef = useRef({ count: 0, last: 0 })
+
+  // Gizli giriş: "Komandalar" sözünə ardıcıl 3 toxunuş kod ekranını açır.
+  function onTeamsTabTap() {
+    const now = Date.now()
+    if (now - tapsRef.current.last > 1000) tapsRef.current.count = 0
+    tapsRef.current.last = now
+    tapsRef.current.count += 1
+    setTab('Komandalar')
+    if (tapsRef.current.count >= 3) {
+      tapsRef.current.count = 0
+      setCodePrompt(true)
+    }
+  }
+
+  if (hiddenOpen) {
+    return (
+      <div>
+        <div className="section-title">
+          <h2>Gizli idarəetmə</h2>
+          <button className="btn btn-ghost btn-sm" onClick={() => setHiddenOpen(false)}>Bağla</button>
+        </div>
+        <HiddenAdminView />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="section-title">
         <h2>Admin Panel</h2>
       </div>
       <div className="tabs">
-        {TABS.map((t) => <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</button>)}
+        {TABS.map((t) => (
+          <button
+            key={t}
+            className={`tab ${tab === t ? 'active' : ''}`}
+            onClick={t === 'Komandalar' ? onTeamsTabTap : () => setTab(t)}
+          >{t}</button>
+        ))}
       </div>
       {tab === 'Komandalar' && <TeamsTab />}
       {tab === 'Turnir' && <TournamentTab />}
       {tab === 'Tarixçə' && <ArchiveTab />}
+
+      {codePrompt && (
+        <SecretGate
+          onSuccess={() => setHiddenOpen(true)}
+          onClose={() => setCodePrompt(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Gizli idarəetmə bölməsinə giriş kodu ekranı. Kod: 66.
+function SecretGate({ onSuccess, onClose }) {
+  const [code, setCode] = useState('')
+  const [err, setErr] = useState(false)
+
+  function submit(e) {
+    e.preventDefault()
+    if (code.trim() === '66') {
+      onSuccess()
+      onClose()
+    } else {
+      setErr(true)
+    }
+  }
+
+  return (
+    <Modal title="Gizli giriş" onClose={onClose}>
+      <form onSubmit={submit}>
+        <p className="muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
+          Bu bölməyə giriş kodu tələb olunur.
+        </p>
+        <div className="field">
+          <label>Giriş kodu</label>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setErr(false) }}
+            placeholder="••••"
+            autoFocus
+            style={{ letterSpacing: 4, fontSize: 16, textAlign: 'center' }}
+          />
+        </div>
+        {err && <div style={{ color: 'var(--live)', fontSize: 12, marginBottom: 10 }}>Kod yanlışdır.</div>}
+        <div className="field-row">
+          <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Ləğv et</button>
+          <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Daxil ol</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ================= GİZLİ KOMANDA İDARƏETMƏSİ =================
+// Komandaların ad, profil şəkli, məlumat və silinmə idarəsi.
+function HiddenAdminView() {
+  const { teamList, activeTournament, addTeam, updateTeam, deleteTeam, notify } = useApp()
+  const [form, setForm] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const inTournament = new Set(activeTournament?.teamIds || [])
+
+  return (
+    <div>
+      <div className="flex-between" style={{ marginBottom: 12 }}>
+        <span className="muted" style={{ fontSize: 12 }}>{teamList.length} komanda</span>
+        <button className="btn btn-primary btn-sm" onClick={() => setForm({ mode: 'add' })}>+ Əlavə et</button>
+      </div>
+
+      {teamList.length === 0
+        ? <EmptyState title="Komanda yoxdur" sub="'Əlavə et' düyməsi ilə komanda yaradın." />
+        : (
+          <div className="stack">
+            {teamList.map((tm) => {
+              const playing = inTournament.has(tm.id)
+              return (
+                <div className="card team-card" key={tm.id}>
+                  <div className="team-card-main">
+                    <TeamLogo team={tm} size={40} />
+                    <div className="team-card-info">
+                      <div className="team-card-name">{tm.name}</div>
+                      <div className="team-card-sub">
+                        {playing
+                          ? <span className="chip chip-live">Turnirdə</span>
+                          : <span className="chip chip-pending">Hazır</span>}
+                        {tm.info && <span className="chip">{tm.info}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="team-card-actions">
+                    <button className="btn btn-ghost btn-sm" onClick={() => setForm({ mode: 'edit', team: tm })}>Redaktə et</button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      disabled={playing}
+                      title={playing ? 'Turnirdəki komanda silinə bilməz' : undefined}
+                      onClick={() => setDeleting(tm)}
+                    >Sil</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+      {form && (
+        <TeamForm
+          showInfo
+          initial={form.mode === 'edit' ? form.team : null}
+          onClose={() => setForm(null)}
+          onSubmit={async ({ name, logoUrl, info }) => {
+            try {
+              if (form.mode === 'edit') {
+                await updateTeam(form.team.id, { name, logoUrl, info })
+                notify('Komanda yeniləndi')
+              } else {
+                await addTeam(name, logoUrl, info)
+                notify('Komanda əlavə edildi')
+              }
+            } catch {
+              notify('Əməliyyat uğursuz oldu')
+            }
+          }}
+        />
+      )}
+
+      {deleting && (
+        <DeleteGate
+          title="Komandanı sil"
+          hint={`"${deleting.name}" komandası tam silinəcək. Bu əməliyyat geri alına bilməz.`}
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => { try { await deleteTeam(deleting.id); notify('Komanda silindi') } catch { notify('Əməliyyat uğursuz oldu') } }}
+        />
+      )}
     </div>
   )
 }
@@ -109,9 +277,10 @@ function TeamsTab() {
   )
 }
 
-function TeamForm({ initial, onClose, onSubmit }) {
+function TeamForm({ initial, showInfo, onClose, onSubmit }) {
   const { notify } = useApp()
   const [name, setName] = useState(initial?.name || '')
+  const [info, setInfo] = useState(initial?.info || '')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(initial?.logoUrl || '')
   const [busy, setBusy] = useState(false)
@@ -131,7 +300,7 @@ function TeamForm({ initial, onClose, onSubmit }) {
     try {
       let logoUrl = preview
       if (file) logoUrl = await uploadImage(file)
-      await onSubmit({ name: name.trim(), logoUrl })
+      await onSubmit({ name: name.trim(), logoUrl, info })
       onClose()
     } catch (err) {
       notify(err.message || 'Yüklənmə uğursuz oldu')
@@ -159,6 +328,17 @@ function TeamForm({ initial, onClose, onSubmit }) {
             )}
           </div>
         </div>
+        {showInfo && (
+          <div className="field">
+            <label>Məlumat (isteğe bağlı)</label>
+            <textarea
+              value={info}
+              onChange={(e) => setInfo(e.target.value)}
+              placeholder="Komanda haqqında qısa məlumat"
+              rows={2}
+            />
+          </div>
+        )}
         <button className="btn btn-primary btn-block" disabled={!name.trim() || busy}>
           {busy ? 'Yüklənir...' : initial ? 'Yadda saxla' : 'Əlavə et'}
         </button>
@@ -225,7 +405,7 @@ function TournamentTab() {
                     >
                       <TeamLogo team={tm} size={28} />
                       <span className="team-pick-name">{tm.name}</span>
-                      <span className="team-pick-check">{s ? '✓' : ''}</span>
+                      <span className={`team-pick-check ${s ? 'on' : ''}`}>{s && <CheckIcon size={11} />}</span>
                     </button>
                   )
                 })}
@@ -246,9 +426,9 @@ function TournamentTab() {
         <div className="flex-between" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontWeight: 800, fontSize: 14 }}>{t.name} {t.season} <span className={`chip ${t.finished ? 'chip-done' : 'chip-pending'}`}>{t.finished ? 'BİTDİ' : `TUR ${t.round}`}</span></div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {!t.finished && <button className="btn btn-gold btn-sm" onClick={() => ask('Turniri bitir', () => finishTournament(t.id))}>🏁 Turniri bitir</button>}
+            {!t.finished && <button className="btn btn-gold btn-sm" onClick={() => ask('Turniri bitir', () => finishTournament(t.id))}>Turniri bitir</button>}
             <button className="btn btn-primary btn-sm" onClick={() => ask('Yeni turnir başlat — köhnəsi arxivlənəcək', async () => { await archiveCurrent(); notify('Köhnə turnir arxivləndi') })}>+ Yeni turnir</button>
-            <button className="btn btn-danger btn-sm" onClick={() => setDeleting(true)}>🗑 Sil</button>
+            <button className="btn btn-danger btn-sm" onClick={() => setDeleting(true)}>Sil</button>
           </div>
         </div>
         <div className="muted" style={{ fontSize: 11.5 }}>{t.teamIds?.length || 0} komanda · hər turda ən güclülər bir-biri ilə oynayır</div>
@@ -266,31 +446,11 @@ function TournamentTab() {
 
       <div className="card">
         <div className="card-title">Xal cədvəli</div>
-        <div className="table">
-          <div className="table-head">
-            <span className="c-pos">#</span>
-            <span className="c-team">Komanda</span>
-            <span className="c-num">O</span>
-            <span className="c-num">Q</span>
-            <span className="c-num">H</span>
-            <span className="c-num">M</span>
-            <span className="c-pts">Xal</span>
-          </div>
-          {standings.map((r, i) => (
-            <div className="table-row" key={r.teamId}>
-              <span className="c-pos">{i + 1}</span>
-              <span className="c-team">
-                <TeamLogo team={teamList.find((x) => x.id === r.teamId)} size={22} />
-                <span className="c-name">{nameOf(r.teamId)}</span>
-              </span>
-              <span className="c-num">{r.played}</span>
-              <span className="c-num">{r.won}</span>
-              <span className="c-num">{r.drawn}</span>
-              <span className="c-num">{r.lost}</span>
-              <span className="c-pts">{r.pts}</span>
-            </div>
-          ))}
-        </div>
+        <StandingsTable
+          standings={standings}
+          nameOf={nameOf}
+          logoOf={(id) => teamList.find((x) => x.id === id) || { name: nameOf(id) }}
+        />
       </div>
 
       {rounds.map(([label, ms]) => (

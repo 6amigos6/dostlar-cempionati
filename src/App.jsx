@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useApp } from './store.jsx'
 import Home from './pages/Home.jsx'
 import Admin from './pages/Admin.jsx'
+import { BallIcon } from './components.jsx'
 
 function getView() {
   return window.location.hash === '#/admin' ? 'admin' : 'home'
@@ -21,11 +22,11 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <a href="#/" className="brand">
-          <span className="brand-mark">⚽</span>
+          <span className="brand-mark"><BallIcon size={16} /></span>
           Dostlar Çempionatı
         </a>
         <a href={view === 'admin' ? '#/' : '#/admin'} className="btn btn-ghost btn-sm">
-          {view === 'admin' ? '← Sayt' : 'Admin'}
+          {view === 'admin' ? 'Sayt' : 'Admin'}
         </a>
       </header>
 
