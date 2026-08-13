@@ -378,43 +378,47 @@ function TournamentTab() {
     }
     return (
       <div>
-        <EmptyState title="Aktiv turnir yoxdur" sub="Komandaları seçin — sistem təsadüfi qarşılaşmaları avtomatik quracaq." />
-        {teamList.length < 2
-          ? <div className="card"><EmptyState title="Ən azı 2 komanda lazımdır" sub="Əvvəlcə 'Komandalar' bölməsindən komanda əlavə edin." /></div>
-          : (
-            <div className="card">
-              <div className="flex-between" style={{ marginBottom: 10 }}>
-                <div className="card-title" style={{ margin: 0 }}>İştirak edən komandalar</div>
-                <button className="btn btn-ghost btn-sm" onClick={() => setSelected(sel.length === teamList.length ? [] : teamList.map((x) => x.id))}>
-                  {sel.length === teamList.length ? 'Hamısını sil' : 'Hamısını seç'}
-                </button>
+        {teamList.length < 2 ? (
+          <div className="card">
+            <EmptyState title="Ən azı 2 komanda lazımdır" sub="Əvvəlcə 'Komandalar' bölməsindən komanda əlavə edin." />
+          </div>
+        ) : (
+          <div className="card">
+            <div className="flex-between" style={{ marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="card-title" style={{ margin: 0 }}>Turnir üçün komandalar</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>İştirak edəcək komandaları seçin</div>
               </div>
-              <div className="team-pick-grid">
-                {teamList.map((tm) => {
-                  const s = sel.includes(tm.id)
-                  return (
-                    <button
-                      type="button"
-                      key={tm.id}
-                      className={`team-pick ${s ? 'selected' : ''}`}
-                      onClick={() => setSelected((cur) => {
-                        const base = cur ?? teamList.map((x) => x.id)
-                        return s ? base.filter((x) => x !== tm.id) : [...base, tm.id]
-                      })}
-                    >
-                      <TeamLogo team={tm} size={28} />
-                      <span className="team-pick-name">{tm.name}</span>
-                      <span className={`team-pick-check ${s ? 'on' : ''}`}>{s && <CheckIcon size={11} />}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex-between" style={{ marginTop: 12 }}>
-                <span className="muted" style={{ fontSize: 12 }}>{sel.length} komanda seçildi</span>
-                <button className="btn btn-primary" disabled={sel.length < 2} onClick={start}>Turniri başlat</button>
-              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelected(sel.length === teamList.length ? [] : teamList.map((x) => x.id))}>
+                {sel.length === teamList.length ? 'Hamısını sil' : 'Hamısını seç'}
+              </button>
             </div>
-          )}
+            <div className="team-pick-grid">
+              {teamList.map((tm) => {
+                const s = sel.includes(tm.id)
+                return (
+                  <button
+                    type="button"
+                    key={tm.id}
+                    className={`team-pick ${s ? 'selected' : ''}`}
+                    onClick={() => setSelected((cur) => {
+                      const base = cur ?? teamList.map((x) => x.id)
+                      return s ? base.filter((x) => x !== tm.id) : [...base, tm.id]
+                    })}
+                  >
+                    <TeamLogo team={tm} size={28} />
+                    <span className="team-pick-name">{tm.name}</span>
+                    <span className={`team-pick-check ${s ? 'on' : ''}`}>{s && <CheckIcon size={11} />}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex-between" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
+              <span className="muted" style={{ fontSize: 12 }}>{sel.length} komanda seçildi</span>
+              <button className="btn btn-primary" disabled={sel.length < 2} onClick={start}>Turniri başlat</button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
