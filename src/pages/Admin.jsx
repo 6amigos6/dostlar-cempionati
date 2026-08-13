@@ -10,10 +10,9 @@ const TABS = ['Komandalar', 'Turnir', 'Tarixçə']
 export default function Admin() {
   const [tab, setTab] = useState('Turnir')
   const [hiddenOpen, setHiddenOpen] = useState(false)
-  const [codePrompt, setCodePrompt] = useState(false)
   const tapsRef = useRef({ count: 0, last: 0 })
 
-  // Gizli giriş: "Komandalar" sözünə ardıcıl 3 toxunuş kod ekranını açır.
+  // Gizli giriş: "Komandalar" sözünə ardıcıl 3 toxunuş idarəetməni birbaşa açır.
   function onTeamsTabTap() {
     const now = Date.now()
     if (now - tapsRef.current.last > 1000) tapsRef.current.count = 0
@@ -22,7 +21,7 @@ export default function Admin() {
     setTab('Komandalar')
     if (tapsRef.current.count >= 3) {
       tapsRef.current.count = 0
-      setCodePrompt(true)
+      setHiddenOpen(true)
     }
   }
 
@@ -55,57 +54,7 @@ export default function Admin() {
       {tab === 'Komandalar' && <TeamsTab />}
       {tab === 'Turnir' && <TournamentTab />}
       {tab === 'Tarixçə' && <ArchiveTab />}
-
-      {codePrompt && (
-        <SecretGate
-          onSuccess={() => setHiddenOpen(true)}
-          onClose={() => setCodePrompt(false)}
-        />
-      )}
     </div>
-  )
-}
-
-// Gizli idarəetmə bölməsinə giriş kodu ekranı. Kod: 66.
-function SecretGate({ onSuccess, onClose }) {
-  const [code, setCode] = useState('')
-  const [err, setErr] = useState(false)
-
-  function submit(e) {
-    e.preventDefault()
-    if (code.trim() === '66') {
-      onSuccess()
-      onClose()
-    } else {
-      setErr(true)
-    }
-  }
-
-  return (
-    <Modal title="Gizli giriş" onClose={onClose}>
-      <form onSubmit={submit}>
-        <p className="muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
-          Bu bölməyə giriş kodu tələb olunur.
-        </p>
-        <div className="field">
-          <label>Giriş kodu</label>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => { setCode(e.target.value); setErr(false) }}
-            placeholder="••••"
-            autoFocus
-            style={{ letterSpacing: 4, fontSize: 16, textAlign: 'center' }}
-          />
-        </div>
-        {err && <div style={{ color: 'var(--live)', fontSize: 12, marginBottom: 10 }}>Kod yanlışdır.</div>}
-        <div className="field-row">
-          <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Ləğv et</button>
-          <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Daxil ol</button>
-        </div>
-      </form>
-    </Modal>
   )
 }
 
