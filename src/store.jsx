@@ -182,7 +182,7 @@ export function AppProvider({ children }) {
       matches[mid] = { id: mid, round: 1, teamA: a, teamB: b, scoreA: null, scoreB: null, playedAt: null }
     })
     const tour = {
-      name: 'Dostlar Çempionatı',
+      name: 'Çempionat',
       season: new Date().getFullYear(),
       teamIds,
       round: 1,

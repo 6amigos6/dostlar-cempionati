@@ -3,7 +3,7 @@ import { useApp } from '../store.jsx'
 import { TeamLogo, Modal, DeleteGate, EmptyState, StandingsTable, CheckIcon } from '../components.jsx'
 import { ArchiveSection } from '../lib/archive.jsx'
 import { uploadImage } from '../lib/upload.js'
-import { computeStandings, matchPlayed } from '../lib/logic.js'
+import { computeStandings, matchPlayed, tournamentLabel } from '../lib/logic.js'
 
 const TABS = ['Komandalar', 'Turnir', 'Tarixçə']
 
@@ -349,9 +349,8 @@ function TeamForm({ initial, showInfo, onClose, onSubmit }) {
 
 // ================= TURNİR =================
 function TournamentTab() {
-  const { activeTournament, teamList, archiveCurrent, startTournament, finishTournament, deleteTournament, recordResult, notify } = useApp()
+  const { activeTournament, teamList, archiveCurrent, startTournament, finishTournament, deleteTournament, notify } = useApp()
   const [selected, setSelected] = useState(null)
-  const [resultFor, setResultFor] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -424,7 +423,7 @@ function TournamentTab() {
     <div>
       <div className="card card-elevated">
         <div className="flex-between" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontWeight: 800, fontSize: 14 }}>{t.name} {t.season} <span className={`chip ${t.finished ? 'chip-done' : 'chip-pending'}`}>{t.finished ? 'BİTDİ' : `TUR ${t.round}`}</span></div>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>{tournamentLabel(t)} <span className={`chip ${t.finished ? 'chip-done' : 'chip-pending'}`}>{t.finished ? 'BİTDİ' : `TUR ${t.round}`}</span></div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {!t.finished && <button className="btn btn-gold btn-sm" onClick={() => ask('Turniri bitir', () => finishTournament(t.id))}>Turniri bitir</button>}
             <button className="btn btn-primary btn-sm" onClick={() => ask('Yeni turnir başlat — köhnəsi arxivlənəcək', async () => { await archiveCurrent(); notify('Köhnə turnir arxivləndi') })}>+ Yeni turnir</button>
@@ -457,32 +456,12 @@ function TournamentTab() {
         <div className="card" key={label}>
           <div className="card-title">{label}</div>
           <div className="stack">
-            {ms.map((m) => {
-              const played = matchPlayed(m)
-              return (
-                <div className={`res-row ${played ? 'played' : ''}`} key={m.id}>
-                  <div className="res-main">
-                    <div className="res-teams">{nameOf(m.teamA)} <span className="res-vs">vs</span> {nameOf(m.teamB)}</div>
-                    <div className="res-score">{played ? `${m.scoreA} : ${m.scoreB}` : 'Nəticə gözlənilir'}</div>
-                  </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => setResultFor(m)}>
-                    {played ? 'Düzəlt' : 'Nəticə daxil et'}
-                  </button>
-                </div>
-              )
-            })}
+            {ms.map((m) => (
+              <InlineResultRow key={m.id} t={t} m={m} nameOf={nameOf} />
+            ))}
           </div>
         </div>
       ))}
-
-      {resultFor && (
-        <ResultForm
-          tournamentId={t.id}
-          match={resultFor}
-          nameOf={nameOf}
-          onClose={() => setResultFor(null)}
-        />
-      )}
 
       {confirm && (
         <Modal title="Təsdiq" onClose={() => setConfirm(null)}>
@@ -506,35 +485,71 @@ function TournamentTab() {
   )
 }
 
-function ResultForm({ tournamentId, match, nameOf, onClose }) {
-  const { recordResult } = useApp()
-  const [a, setA] = useState(match.scoreA != null ? String(match.scoreA) : '')
-  const [b, setB] = useState(match.scoreB != null ? String(match.scoreB) : '')
+// İnline nəticə daxiletməsi: modal açılmır, ekran tərpənmir — nəticə
+// birbaşa qarşılaşma kartının daxilində yazılıb təsdiqlənir.
+function InlineResultRow({ t, m, nameOf }) {
+  const { recordResult, notify } = useApp()
+  const played = matchPlayed(m)
+  const [editing, setEditing] = useState(!played)
+  const [a, setA] = useState(m.scoreA != null ? String(m.scoreA) : '')
+  const [b, setB] = useState(m.scoreB != null ? String(m.scoreB) : '')
+  const [busy, setBusy] = useState(false)
 
-  async function submit(e) {
+  function openEditor() {
+    setA(m.scoreA != null ? String(m.scoreA) : '')
+    setB(m.scoreB != null ? String(m.scoreB) : '')
+    setEditing(true)
+  }
+
+  async function save(e) {
     e.preventDefault()
-    if (a === '' || b === '' || Number(a) < 0 || Number(b) < 0) return
-    await recordResult(tournamentId, match.id, Number(a), Number(b))
-    onClose()
+    if (a === '' || b === '' || Number(a) < 0 || Number(b) < 0 || busy) return
+    setBusy(true)
+    try {
+      await recordResult(t.id, m.id, Number(a), Number(b))
+      setEditing(false)
+    } catch {
+      notify('Nəticə yazıla bilmədi')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
-    <Modal title="Nəticə daxil et" onClose={onClose}>
-      <form onSubmit={submit}>
-        <div className="field-row" style={{ alignItems: 'center' }}>
-          <div className="field" style={{ textAlign: 'center' }}>
-            <label>{nameOf(match.teamA)}</label>
-            <input type="number" min="0" inputMode="numeric" value={a} onChange={(e) => setA(e.target.value)} placeholder="0" style={{ textAlign: 'center', fontSize: 20 }} autoFocus />
+    <form className={`res-row inline ${played ? 'played' : ''}`} onSubmit={save}>
+      <div className="res-main">
+        <div className="res-teams">{nameOf(m.teamA)} <span className="res-vs">vs</span> {nameOf(m.teamB)}</div>
+        {editing ? (
+          <div className="res-inputs">
+            <input
+              type="number" min="0" inputMode="numeric"
+              value={a} onChange={(e) => setA(e.target.value)}
+              placeholder="0" aria-label={`${nameOf(m.teamA)} hesabı`}
+            />
+            <span className="res-colon">:</span>
+            <input
+              type="number" min="0" inputMode="numeric"
+              value={b} onChange={(e) => setB(e.target.value)}
+              placeholder="0" aria-label={`${nameOf(m.teamB)} hesabı`}
+            />
           </div>
-          <span style={{ fontSize: 18, color: 'var(--ink-dim)' }}>:</span>
-          <div className="field" style={{ textAlign: 'center' }}>
-            <label>{nameOf(match.teamB)}</label>
-            <input type="number" min="0" inputMode="numeric" value={b} onChange={(e) => setB(e.target.value)} placeholder="0" style={{ textAlign: 'center', fontSize: 20 }} />
-          </div>
+        ) : (
+          <div className="res-score">{m.scoreA} : {m.scoreB}</div>
+        )}
+      </div>
+      {editing ? (
+        <div className="res-actions">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Ləğv et</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={a === '' || b === '' || busy}>
+            {busy ? 'Yazılır...' : 'Yadda saxla'}
+          </button>
         </div>
-        <button className="btn btn-primary btn-block" disabled={a === '' || b === ''}>Nəticəni yadda saxla</button>
-      </form>
-    </Modal>
+      ) : (
+        <button type="button" className="btn btn-primary btn-sm" onClick={openEditor}>
+          {played ? 'Düzəlt' : 'Nəticə daxil et'}
+        </button>
+      )}
+    </form>
   )
 }
 

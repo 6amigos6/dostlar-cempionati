@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../store.jsx'
 import { TeamLogo, EmptyState, StandingsTable } from '../components.jsx'
 import { Bracket } from '../lib/bracket.jsx'
-import { ArchiveSection } from '../lib/archive.jsx'
-import { computeStandings, matchPlayed } from '../lib/logic.js'
+import { computeStandings, matchPlayed, tournamentLabel } from '../lib/logic.js'
 
 export default function Home() {
   const { activeTournament, teams, archiveList } = useApp()
@@ -29,15 +28,7 @@ export default function Home() {
   return (
     <div className="tv">
       {!t ? (
-        <>
-          <NoTournament archiveList={archiveList} teams={teams} />
-          {archiveList.length > 0 && (
-            <div className="card">
-              <div className="card-title">Tarixçə</div>
-              <ArchiveSection items={archiveList} teams={teams} />
-            </div>
-          )}
-        </>
+        <NoTournament archiveList={archiveList} teams={teams} />
       ) : (
         <>
           <TournamentHeader t={t} currentRoundLabel={currentRoundLabel} />
@@ -53,15 +44,10 @@ export default function Home() {
           </div>
 
           <PairingsSection t={t} matches={matches} teams={teams} rounds={rounds} />
-
-          {archiveList.length > 0 && (
-            <div className="card">
-              <div className="card-title">Tarixçə</div>
-              <ArchiveSection items={archiveList} teams={teams} />
-            </div>
-          )}
         </>
       )}
+
+      {archiveList.length > 0 && <ArchiveLinkCard count={archiveList.length} />}
     </div>
   )
 }
@@ -69,8 +55,8 @@ export default function Home() {
 function TournamentHeader({ t, currentRoundLabel }) {
   return (
     <div className="tournament-head">
-      <div className="tournament-eyebrow">DOSTLAR ÇEMPİONATI</div>
-      <div className="tournament-name">{t.name} {t.season}</div>
+      <div className="tournament-eyebrow">ÇEMPİONAT</div>
+      <div className="tournament-name">{tournamentLabel(t)}</div>
       <div className={`tournament-status ${t.finished ? 'done' : ''}`}>
         {t.finished ? 'Bitdi' : currentRoundLabel ? `Cari tur: ${currentRoundLabel}` : 'Turnir bitdi'}
       </div>
@@ -92,7 +78,7 @@ function ChampionSection({ t, teams, standings }) {
         <TeamLogo team={champ} size={92} />
       </div>
       <div className="champion-name">{champ.name}</div>
-      <div className="champion-tourney">{t.name} {t.season}</div>
+      <div className="champion-tourney">{tournamentLabel(t)}</div>
       <div className="champion-stats">
         <ChampionStat label="Oyun" value={row?.played ?? '–'} />
         <ChampionStat label="Qələbə" value={row?.won ?? '–'} />
@@ -131,7 +117,19 @@ function NoTournament({ archiveList, teams }) {
         <TeamLogo team={champ} size={40} />
         <span style={{ fontSize: 20, fontWeight: 800 }}>{champ.name}</span>
       </div>
-      <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{last.name} · {last.season}</div>
+      <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{tournamentLabel(last)}</div>
+    </div>
+  )
+}
+
+function ArchiveLinkCard({ count }) {
+  return (
+    <div className="card archive-link">
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 800, fontSize: 13.5 }}>Arxiv</div>
+        <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>{count} bitmiş turnir</div>
+      </div>
+      <a className="btn btn-outline btn-sm" href="#/archive">Bax</a>
     </div>
   )
 }
@@ -195,8 +193,6 @@ function PairingsSection({ t, matches, teams, rounds }) {
     return { id: String(label), name, matches: ms }
   })
 
-  const champ = t.champion ? (t.teamsInfo?.[t.champion] || teams?.[t.champion]) : null
-
   return (
     <div className="card">
       <div className="flex-between" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
@@ -221,30 +217,18 @@ function PairingsSection({ t, matches, teams, rounds }) {
           onDone={() => setRevealing(false)}
         />
       ) : (
-        <>
-          <div className="bk-scroll">
-            <div className="board" ref={bracketRef}>
-              <Bracket
-                rounds={bracketRounds}
-                matchWidth={190}
-                connectorWidth={32}
-                matchGap={8}
-                renderRoundHeader={(r) => <div className="round-header">{r.name}</div>}
-                renderMatch={(m) => <BracketMatchCard m={m} nameOf={nameOf} teams={teams} />}
-              />
-            </div>
+        <div className="bk-scroll">
+          <div className="board" ref={bracketRef}>
+            <Bracket
+              rounds={bracketRounds}
+              matchWidth={190}
+              connectorWidth={32}
+              matchGap={8}
+              renderRoundHeader={(r) => <div className="round-header">{r.name}</div>}
+              renderMatch={(m) => <BracketMatchCard m={m} nameOf={nameOf} teams={teams} />}
+            />
           </div>
-
-          {t.finished && champ && (
-            <div className="pairing-champion">
-              <div className="pairing-champion-eyebrow">CHAMPION</div>
-              <div className="pairing-champion-main">
-                <TeamLogo team={champ} size={44} />
-                <div className="pairing-champion-name">{champ.name}</div>
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   )

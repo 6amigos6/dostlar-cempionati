@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { TeamLogo, EmptyState, StandingsTable, ChevronIcon } from '../components.jsx'
-import { computeStandings, matchPlayed, DEFAULT_POINTS } from './logic.js'
+import { computeStandings, matchPlayed, DEFAULT_POINTS, tournamentLabel } from './logic.js'
 
 // Həm user, həm admin panelində işlənən Tarixçə bölməsi.
 // Hər arxivlənmiş turnir: komandalar, qarşılaşmalar, nəticələr, xal cədvəli,
@@ -60,7 +60,7 @@ function ArchiveCard({ t, teams, open, onToggle, onDelete }) {
     <div className="card" style={{ marginBottom: 0, padding: 0, overflow: 'hidden' }}>
       <button type="button" className="arch-head" onClick={onToggle}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 13.5 }}>{t.name} · {t.season}</div>
+          <div style={{ fontWeight: 800, fontSize: 13.5 }}>{tournamentLabel(t)}</div>
           <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
             {champ ? <>Çempion: <b style={{ color: 'var(--gold)' }}>{champ.name}</b></> : 'Çempion yoxdur'} · {t.teamIds?.length || 0} komanda
           </div>

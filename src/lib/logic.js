@@ -3,6 +3,13 @@
 
 export const DEFAULT_POINTS = { win: 3, draw: 1, loss: 0 }
 
+// Saytda yalnız "Çempionat" sözü istifadə olunur.
+// Köhnə turnirlərdəki adlardan asılı olmayaraq vahid etiket qaytarır.
+export function tournamentLabel(t) {
+  const season = t?.season
+  return season ? `Çempionat ${season}` : 'Çempionat'
+}
+
 const PALETTE = ['#1FA35C', '#D4AF37', '#2563EB', '#DC2626', '#7C3AED', '#EA580C', '#0D9488', '#DB2777']
 
 // Komanda avatarsı üçün ad əsasında sabit rəng

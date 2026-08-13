@@ -129,8 +129,9 @@ export function EmptyState({ title, sub }) {
   )
 }
 
-// Xal cədvəli: tam sütun adları (Oyun / Qələbə / Heç-heçə / Məğlubiyyət / Xal),
-// mobil ekranlarda üfüqi sürüşdürmə ilə tam oxunaqlı.
+// Xal cədvəli: tam sütun adları (Oyun / Qələbə / Heç-heçə / Məğlubiyyət /
+// Vurulan / Buraxılan / Top fərqi / Xal), mobil ekranlarda üfüqi sürüşdürmə ilə tam oxunaqlı.
+// Sıralama: xal → top fərqi → vurulan qollar.
 export function StandingsTable({ standings, nameOf, logoOf }) {
   return (
     <div className="table-wrap">
@@ -142,22 +143,31 @@ export function StandingsTable({ standings, nameOf, logoOf }) {
           <span className="c-num">Qələbə</span>
           <span className="c-num">Heç-heçə</span>
           <span className="c-num">Məğlubiyyət</span>
+          <span className="c-num">Vurulan</span>
+          <span className="c-num">Buraxılan</span>
+          <span className="c-num">Top fərqi</span>
           <span className="c-pts">Xal</span>
         </div>
-        {standings.map((r, i) => (
-          <div className="table-row" key={r.teamId}>
-            <span className="c-pos">{i + 1}</span>
-            <span className="c-team">
-              <TeamLogo team={logoOf ? logoOf(r.teamId) : { name: nameOf(r.teamId) }} size={22} />
-              <span className="c-name">{nameOf(r.teamId)}</span>
-            </span>
-            <span className="c-num">{r.played}</span>
-            <span className="c-num">{r.won}</span>
-            <span className="c-num">{r.drawn}</span>
-            <span className="c-num">{r.lost}</span>
-            <span className="c-pts">{r.pts}</span>
-          </div>
-        ))}
+        {standings.map((r, i) => {
+          const gd = r.gf - r.ga
+          return (
+            <div className="table-row" key={r.teamId}>
+              <span className="c-pos">{i + 1}</span>
+              <span className="c-team">
+                <TeamLogo team={logoOf ? logoOf(r.teamId) : { name: nameOf(r.teamId) }} size={22} />
+                <span className="c-name">{nameOf(r.teamId)}</span>
+              </span>
+              <span className="c-num">{r.played}</span>
+              <span className="c-num">{r.won}</span>
+              <span className="c-num">{r.drawn}</span>
+              <span className="c-num">{r.lost}</span>
+              <span className="c-num">{r.gf}</span>
+              <span className="c-num">{r.ga}</span>
+              <span className={`c-num ${gd > 0 ? 'pos' : gd < 0 ? 'neg' : ''}`}>{gd > 0 ? `+${gd}` : gd}</span>
+              <span className="c-pts">{r.pts}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
